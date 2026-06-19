@@ -1,0 +1,628 @@
+export const STORAGE_KEY = 'face-blocks-v1';
+export const SETTINGS_KEY = 'face-settings-v1';
+
+// Institutional UBB Branding
+export const UBB_BRANDING = {
+  brandName: 'Facultad de Ciencias Empresariales',
+  institutionName: 'Universidad del Bío-Bío',
+  domain: 'ubiobio.cl',
+  sedes: ['Concepción', 'Chillán'],
+  colors: {
+    primary: '#0057b8',
+    primaryDark: '#003f7f',
+    primarySoft: '#e8f0ff',
+    secondary: '#f39200',
+    neutral: '#22252a',
+    light: '#e7e9ed',
+    white: '#ffffff',
+    accent: '#d4dde9',
+  },
+  typography: {
+    fontFamily: "'Space Grotesk', 'Segoe UI', sans-serif",
+    headingSize: 'clamp(28px, 5vw, 48px)',
+    bodySize: 'clamp(14px, 2vw, 18px)',
+  },
+};
+
+export const defaultStyle = {
+  background: UBB_BRANDING.colors.white,
+  color: UBB_BRANDING.colors.neutral,
+  align: 'left',
+  padding: 18,
+  radius: 10,
+  x: 24,
+  y: 24,
+  width: 360,
+  height: 180,
+  titleSize: 34,
+  textSize: 17,
+  fontFamily: UBB_BRANDING.typography.fontFamily,
+};
+
+export const defaultPageSettings = {
+  pageBackground: '#eef1f5',
+  canvasWidth: 980,
+  canvasHeight: 720,
+  darkMode: false,
+  module: 'academic',
+  institutionalBranding: true,
+  seoDescription: '',
+  keywords: [],
+};
+
+export const blockTemplates = {
+  hero: {
+    type: 'hero',
+    title: 'Nuevo hero',
+    subtitle: 'Presenta lo mas importante',
+    style: {
+      ...defaultStyle,
+      background: UBB_BRANDING.colors.primarySoft,
+      color: UBB_BRANDING.colors.primaryDark,
+      align: 'center',
+      padding: 24,
+      radius: 14,
+      width: 520,
+      height: 210,
+      x: 40,
+      y: 40,
+      titleSize: 44,
+      textSize: 20,
+    },
+  },
+  text: {
+    type: 'text',
+    title: 'Nuevo texto',
+    subtitle: 'Escribe aqui',
+    style: {
+      ...defaultStyle,
+      width: 380,
+      height: 180,
+      x: 40,
+      y: 280,
+      titleSize: 30,
+      textSize: 17,
+    },
+  },
+  image: {
+    type: 'image',
+    title: 'https://picsum.photos/900/350',
+    subtitle: 'Descripcion de imagen',
+    style: {
+      ...defaultStyle,
+      background: UBB_BRANDING.colors.white,
+      color: '#374151',
+      align: 'center',
+      padding: 12,
+      radius: 14,
+      width: 460,
+      height: 280,
+      x: 440,
+      y: 280,
+      titleSize: 20,
+      textSize: 15,
+    },
+  },
+  button: {
+    type: 'button',
+    title: 'Boton principal',
+    subtitle: '#',
+    style: {
+      ...defaultStyle,
+      background: UBB_BRANDING.colors.primary,
+      color: UBB_BRANDING.colors.white,
+      align: 'center',
+      padding: 12,
+      radius: 999,
+      width: 260,
+      height: 90,
+      x: 640,
+      y: 70,
+      titleSize: 20,
+      textSize: 14,
+    },
+  },
+  // Academic Module Blocks
+  program_header: {
+    type: 'program_header',
+    title: 'Nombre del Programa',
+    subtitle: 'Magister en Administración de Empresas',
+    metadata: {
+      level: 'master',
+      duration: '4 semestres',
+      coordinator: 'Dr. Nombre',
+      email: 'programa@ubiobio.cl',
+    },
+    style: {
+      ...defaultStyle,
+      background: UBB_BRANDING.colors.primarySoft,
+      color: UBB_BRANDING.colors.primaryDark,
+      width: 900,
+      height: 160,
+      titleSize: 36,
+      textSize: 16,
+    },
+  },
+  curriculum: {
+    type: 'curriculum',
+    title: 'Malla Curricular',
+    subtitle: 'Semestres y asignaturas',
+    metadata: {
+      semesters: [],
+      totalCredits: 0,
+    },
+    style: {
+      ...defaultStyle,
+      background: UBB_BRANDING.colors.light,
+      width: 880,
+      height: 400,
+    },
+  },
+  news_item: {
+    type: 'news_item',
+    title: 'Título de Noticia',
+    subtitle: 'Descripción breve',
+    metadata: {
+      date: new Date().toISOString(),
+      category: 'academic',
+      author: '',
+      image: 'https://picsum.photos/400/300',
+    },
+    style: {
+      ...defaultStyle,
+      width: 320,
+      height: 280,
+    },
+  },
+  congress_event: {
+    type: 'congress_event',
+    title: 'Nombre del Congreso',
+    subtitle: 'Información del evento',
+    metadata: {
+      date: '',
+      location: '',
+      speakers: [],
+      sessions: [],
+      registrationUrl: '',
+    },
+    style: {
+      ...defaultStyle,
+      background: UBB_BRANDING.colors.secondary,
+      color: UBB_BRANDING.colors.white,
+      width: 900,
+      height: 200,
+    },
+  },
+  contact_info: {
+    type: 'contact_info',
+    title: 'Información de Contacto',
+    subtitle: 'Estamos aquí para ayudarte',
+    metadata: {
+      phone: '',
+      email: '',
+      address: '',
+      office: '',
+      hours: '',
+    },
+    style: {
+      ...defaultStyle,
+      background: UBB_BRANDING.colors.neutral,
+      color: UBB_BRANDING.colors.white,
+      width: 880,
+      height: 200,
+    },
+  },
+  archive_list: {
+    type: 'archive_list',
+    title: 'Archivo Histórico',
+    subtitle: 'Documentos y registros académicos',
+    metadata: {
+      items: [],
+      sortBy: 'date',
+    },
+    style: {
+      ...defaultStyle,
+      width: 880,
+      height: 400,
+    },
+  },
+  navbar: {
+    type: 'navbar',
+    title: 'Universidad del Bío-Bío',
+    subtitle: 'http://www.ubiobio.cl',
+    style: {
+      ...defaultStyle,
+      background: UBB_BRANDING.colors.primary,
+      color: UBB_BRANDING.colors.white,
+      width: 900,
+      height: 80,
+      x: 40,
+      y: 20,
+      titleSize: 22,
+      textSize: 14,
+      radius: 0,
+      padding: 12
+    },
+  },
+  news_grid: {
+    type: 'news_grid',
+    title: 'Noticias Destacadas UBB',
+    subtitle: 'Novedades semanales del campus universitario',
+    metadata: {
+      items: [
+        {
+          title: 'Académico UBB se integra a grupo de evaluación Fondecyt de ANID',
+          image: 'https://picsum.photos/400/250?random=1',
+          url: '#'
+        },
+        {
+          title: 'Facultad de Ciencias Empresariales (FACE) inicia proceso de acreditación',
+          image: 'https://picsum.photos/400/250?random=2',
+          url: '#'
+        },
+        {
+          title: 'Estudiantes UBB ganan primer lugar en torneo nacional de innovación',
+          image: 'https://picsum.photos/400/250?random=3',
+          url: '#'
+        }
+      ]
+    },
+    style: {
+      ...defaultStyle,
+      background: UBB_BRANDING.colors.light,
+      color: UBB_BRANDING.colors.neutral,
+      width: 900,
+      height: 380,
+      x: 40,
+      y: 370,
+      titleSize: 24,
+      textSize: 14,
+      radius: 12,
+      padding: 20
+    },
+  },
+  footer: {
+    type: 'footer',
+    title: 'Universidad del Bío-Bío',
+    subtitle: 'Todos los derechos reservados © 2026. Sedes Concepción y Chillán. Chile.',
+    style: {
+      ...defaultStyle,
+      background: UBB_BRANDING.colors.neutral,
+      color: UBB_BRANDING.colors.white,
+      width: 900,
+      height: 160,
+      x: 40,
+      y: 770,
+      titleSize: 18,
+      textSize: 12,
+      radius: 0,
+      padding: 24
+    },
+  },
+  rich_article: {
+    type: 'rich_article',
+    title: 'Académico UBB se integra al Grupo de Evaluación FONDECYT de Educación Superior de ANID',
+    subtitle: 'Por Comunicaciones FACE • 15 de Junio, 2026',
+    metadata: {
+      paragraphs: [
+        'El académico del Departamento de Ciencias de la Educación de la Facultad de Ciencias Empresariales (FACE) ha sido seleccionado para conformar el prestigioso Grupo de Evaluación FONDECYT de Educación Superior de la Agencia Nacional de Investigación y Desarrollo (ANID).',
+        'Este nombramiento representa un importante hito tanto para la Facultad como para la Universidad del Bío-Bío, consolidando la presencia institucional en las mesas técnicas que guían el financiamiento científico nacional en materia de educación y desarrollo social.',
+        'El decano de la facultad felicitó el nombramiento y destacó que esto refuerza la labor de investigación y vinculación con el medio que se viene realizando de manera sistemática en la universidad.'
+      ]
+    },
+    style: {
+      ...defaultStyle,
+      background: UBB_BRANDING.colors.white,
+      color: UBB_BRANDING.colors.neutral,
+      width: 900,
+      height: 420,
+      x: 40,
+      y: 120,
+      titleSize: 26,
+      textSize: 16,
+      radius: 8,
+      padding: 24,
+      align: 'left'
+    },
+  },
+};
+
+// Labels de tipos de bloques traducidos al español
+export const blockTypeLabels = {
+  hero: 'Héroe',
+  text: 'Texto',
+  image: 'Imagen',
+  button: 'Botón',
+  program_header: 'Encabezado de Programa',
+  curriculum: 'Malla Curricular',
+  congress_event: 'Evento de Congreso',
+  news_item: 'Noticia',
+  contact_info: 'Información de Contacto',
+  archive_list: 'Lista de Archivo',
+  navbar: 'Barra Navegación UBB',
+  news_grid: 'Mosaico de Noticias',
+  footer: 'Pie de Página UBB',
+  rich_article: 'Cuerpo de Noticia/Artículo',
+};
+
+export const starters = [
+  {
+    id: crypto.randomUUID(),
+    type: 'hero',
+    title: 'Titulo principal',
+    subtitle: 'Texto de bienvenida',
+    style: {
+      ...defaultStyle,
+      background: UBB_BRANDING.colors.primarySoft,
+      color: UBB_BRANDING.colors.primaryDark,
+      align: 'center',
+      padding: 24,
+      radius: 14,
+      width: 520,
+      height: 210,
+      x: 40,
+      y: 40,
+      titleSize: 44,
+      textSize: 20,
+    },
+  },
+  {
+    id: crypto.randomUUID(),
+    type: 'text',
+    title: 'Seccion',
+    subtitle: 'Describe tu negocio',
+    style: {
+      ...defaultStyle,
+      width: 380,
+      height: 180,
+      x: 40,
+      y: 280,
+      titleSize: 30,
+      textSize: 17,
+    },
+  },
+];
+
+// Module-specific templates
+export const moduleTemplates = {
+  academic: {
+    name: 'Portal Académico',
+    description: 'Plantilla para programas académicos (Magister/Doctorado)',
+    pageSettings: {
+      ...defaultPageSettings,
+      module: 'academic',
+      canvasHeight: 1200,
+    },
+    blocks: [
+      {
+        id: crypto.randomUUID(),
+        type: 'program_header',
+        title: 'Magister en Administración de Empresas',
+        subtitle: 'Programa de postgrado - Sede Concepción',
+        metadata: {
+          level: 'master',
+          duration: '4 semestres',
+          coordinator: 'Dr. Coordinador',
+          email: 'magister@ubiobio.cl',
+        },
+        style: {
+          ...defaultStyle,
+          background: UBB_BRANDING.colors.primarySoft,
+          color: UBB_BRANDING.colors.primaryDark,
+          width: 900,
+          height: 160,
+          x: 40,
+          y: 40,
+          titleSize: 36,
+          textSize: 16,
+        },
+      },
+      {
+        id: crypto.randomUUID(),
+        type: 'text',
+        title: 'Descripción del Programa',
+        subtitle: 'El programa forma profesionales con capacidades para gestionar organizaciones...',
+        style: {
+          ...defaultStyle,
+          width: 900,
+          height: 200,
+          x: 40,
+          y: 220,
+        },
+      },
+      {
+        id: crypto.randomUUID(),
+        type: 'curriculum',
+        title: 'Malla Curricular',
+        subtitle: 'Asignaturas del programa',
+        metadata: {
+          semesters: 4,
+          totalCredits: 120,
+        },
+        style: {
+          ...defaultStyle,
+          background: UBB_BRANDING.colors.light,
+          width: 900,
+          height: 300,
+          x: 40,
+          y: 440,
+        },
+      },
+      {
+        id: crypto.randomUUID(),
+        type: 'contact_info',
+        title: 'Contacto',
+        subtitle: '¿Tienes preguntas? Ponte en contacto con nosotros',
+        metadata: {
+          phone: '+56-41-3113688',
+          email: 'magister@ubiobio.cl',
+          address: 'Concepción / Chillán',
+          office: 'Edificio de Postgrados',
+          hours: 'Lunes a viernes 09:00 - 17:00',
+        },
+        style: {
+          ...defaultStyle,
+          background: UBB_BRANDING.colors.neutral,
+          color: UBB_BRANDING.colors.white,
+          width: 900,
+          height: 180,
+          x: 40,
+          y: 760,
+        },
+      },
+    ],
+  },
+  congress: {
+    name: 'Sitio de Congreso',
+    description: 'Plantilla para congresos y eventos académicos con registro histórico',
+    pageSettings: {
+      ...defaultPageSettings,
+      module: 'congress',
+      canvasHeight: 1400,
+    },
+    blocks: [
+      {
+        id: crypto.randomUUID(),
+        type: 'congress_event',
+        title: 'Congreso Anual de Investigación',
+        subtitle: 'Evento académico de difusión de investigaciones',
+        metadata: {
+          date: '15-17 de octubre, 2024',
+          location: 'Campus Concepción, UBB',
+          speakers: [],
+          sessions: [],
+          registrationUrl: '#registro',
+        },
+        style: {
+          ...defaultStyle,
+          background: UBB_BRANDING.colors.secondary,
+          color: UBB_BRANDING.colors.white,
+          width: 900,
+          height: 200,
+          x: 40,
+          y: 40,
+          align: 'center',
+          titleSize: 40,
+          textSize: 18,
+        },
+      },
+      {
+        id: crypto.randomUUID(),
+        type: 'text',
+        title: 'Ejes Temáticos',
+        subtitle: 'Investigación, Innovación, Sostenibilidad',
+        style: {
+          ...defaultStyle,
+          width: 900,
+          height: 160,
+          x: 40,
+          y: 260,
+        },
+      },
+      {
+        id: crypto.randomUUID(),
+        type: 'archive_list',
+        title: 'Congresos Anteriores',
+        subtitle: 'Acceso a documentación de eventos pasados',
+        metadata: {
+          items: [],
+          sortBy: 'date',
+        },
+        style: {
+          ...defaultStyle,
+          background: UBB_BRANDING.colors.light,
+          width: 900,
+          height: 400,
+          x: 40,
+          y: 440,
+        },
+      },
+    ],
+  },
+  diffusion: {
+    name: 'Difusión Institucional',
+    description: 'Plantilla para noticias y comunicaciones de departamentos',
+    pageSettings: {
+      ...defaultPageSettings,
+      module: 'diffusion',
+      canvasHeight: 1000,
+    },
+    blocks: [
+      {
+        id: crypto.randomUUID(),
+        type: 'hero',
+        title: 'Noticias y Comunicados',
+        subtitle: 'Última información de la Facultad de Ciencias Empresariales',
+        style: {
+          ...defaultStyle,
+          background: UBB_BRANDING.colors.primarySoft,
+          color: UBB_BRANDING.colors.primaryDark,
+          width: 900,
+          height: 160,
+          x: 40,
+          y: 40,
+          align: 'center',
+          titleSize: 36,
+          textSize: 16,
+        },
+      },
+      {
+        id: crypto.randomUUID(),
+        type: 'news_item',
+        title: 'Noticia Destacada 1',
+        subtitle: 'Descripción de la noticia',
+        metadata: {
+          date: new Date().toISOString(),
+          category: 'academic',
+          author: 'Departamento',
+          image: 'https://picsum.photos/400/300',
+        },
+        style: {
+          ...defaultStyle,
+          width: 280,
+          height: 300,
+          x: 40,
+          y: 220,
+        },
+      },
+      {
+        id: crypto.randomUUID(),
+        type: 'news_item',
+        title: 'Noticia Destacada 2',
+        subtitle: 'Descripción de la noticia',
+        metadata: {
+          date: new Date().toISOString(),
+          category: 'event',
+          author: 'Departamento',
+          image: 'https://picsum.photos/400/300',
+        },
+        style: {
+          ...defaultStyle,
+          width: 280,
+          height: 300,
+          x: 350,
+          y: 220,
+        },
+      },
+      {
+        id: crypto.randomUUID(),
+        type: 'news_item',
+        title: 'Noticia Destacada 3',
+        subtitle: 'Descripción de la noticia',
+        metadata: {
+          date: new Date().toISOString(),
+          category: 'achievement',
+          author: 'Departamento',
+          image: 'https://picsum.photos/400/300',
+        },
+        style: {
+          ...defaultStyle,
+          width: 280,
+          height: 300,
+          x: 660,
+          y: 220,
+        },
+      },
+    ],
+  },
+};

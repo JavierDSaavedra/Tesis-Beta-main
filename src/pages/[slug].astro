@@ -1,0 +1,87 @@
+---
+import Layout from '../frontend/layouts/Layout.astro';
+import { renderBlock } from '../backend/page-builder/renderers.jsx';
+import { fetchPagesFromStrapi } from '../backend/page-builder/storage.js';
+
+export async function getStaticPaths() {
+  const pages = await fetchPagesFromStrapi();
+  
+  if (!pages || pages.length === 0) {
+    // Return a dummy path if no pages exist yet to prevent build errors
+    return [
+      {
+        params: { slug: 'inicio' },
+        props: {
+          page: {
+            title: 'Inicio',
+            slug: 'inicio',
+            blocks: [
+              {
+                id: 'welcome',
+                type: 'hero',
+                title: 'Bienvenido a FACE UBB',
+                subtitle: 'Configura tu primer contenido en Strapi.',
+                style: { x: 40, y: 40, width: 880, height: 200, padding: 28, background: '#0057b8', color: '#ffffff', align: 'center', radius: 10 }
+              }
+            ],
+            pageSettings: {
+              pageBackground: '#f3f4f6',
+              canvasWidth: 960,
+              canvasHeight: 600,
+              darkMode: false
+            }
+          }
+        }
+      }
+    ];
+  }
+
+  return pages.map((page) => ({
+    params: { slug: page.slug || 'sin-nombre' },
+    props: { page },
+  }));
+}
+
+const { page } = Astro.props;
+const { blocks = [], pageSettings = {} } = page;
+
+const canvasColor = pageSettings.darkMode ? '#10141c' : '#ffffff';
+const pageText = pageSettings.darkMode ? '#e5e7eb' : '#111827';
+const pageBg = pageSettings.pageBackground || '#f3f4f6';
+const canvasWidth = pageSettings.canvasWidth || 960;
+const canvasHeight = pageSettings.canvasHeight || 800;
+---
+
+<Layout>
+  <div style={{ background: pageBg, minHeight: '100vh', padding: '24px 0', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+    <main style={{
+      position: 'relative',
+      width: `${canvasWidth}px`,
+      height: `${canvasHeight}px`,
+      background: canvasColor,
+      color: pageText,
+      borderRadius: '12px',
+      overflow: 'hidden',
+      boxShadow: '0 10px 25px rgba(0,0,0,0.1)'
+    }}>
+      {blocks.map((block) => {
+        const x = block.style?.x ?? 0;
+        const y = block.style?.y ?? 0;
+        const w = block.style?.width ?? 280;
+        const h = block.style?.height ?? 140;
+        
+        return (
+          <div style={{
+            position: 'absolute',
+            left: `${x}px`,
+            top: `${y}px`,
+            width: `${w}px`,
+            height: `${h}px`
+          }}>
+            {renderBlock(block)}
+          </div>
+        );
+      })}
+    </main>
+  </div>
+</Layout>
