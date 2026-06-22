@@ -15,6 +15,7 @@ import {
   fetchPagesFromStrapi,
   savePageToStrapi,
   deletePageFromStrapi,
+  STRAPI_BASE_URL,
 } from '../../backend/page-builder/storage';
 
 function exportHtmlDocument(blocks, pageSettings) {
@@ -636,6 +637,25 @@ export default function PageBuilder() {
               Eliminar
             </button>
           )}
+          <a
+            href={`${STRAPI_BASE_URL}/admin`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="pb-export"
+            style={{
+              background: 'linear-gradient(135deg, #4945ff, #7e7bff)',
+              color: '#fff',
+              fontWeight: 'bold',
+              textDecoration: 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              boxShadow: '0 4px 14px rgba(73, 69, 255, 0.25)'
+            }}
+          >
+            CMS Strapi ⚙️
+          </a>
           <button
             type="button"
             className="pb-export"
