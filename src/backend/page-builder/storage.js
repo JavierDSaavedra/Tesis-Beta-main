@@ -5,6 +5,7 @@ import { sanitizeBlock } from './helpers';
 
 export const STRAPI_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env?.PUBLIC_STRAPI_API_URL) || 'http://localhost:1337';
 export const STRAPI_API_URL = `${STRAPI_BASE_URL}/api/pages`;
+export const STRAPI_TEMPLATES_URL = `${STRAPI_BASE_URL}/api/templates`;
 
 export function loadInitialBlocks() {
   if (typeof window === 'undefined') return starters;
@@ -80,8 +81,20 @@ export function clearCurrentProject() {
 
 export async function fetchPagesFromStrapi() {
   try {
-    const res = await fetch(STRAPI_API_URL);
+    const res = await fetch(`${STRAPI_API_URL}?populate=*`);
     if (!res.ok) throw new Error('Error al obtener páginas de Strapi');
+    const json = await res.json();
+    return json.data || [];
+  } catch (err) {
+    console.error(err);
+    return [];
+  }
+}
+
+export async function fetchTemplatesFromStrapi() {
+  try {
+    const res = await fetch(STRAPI_TEMPLATES_URL);
+    if (!res.ok) throw new Error('Error al obtener plantillas de Strapi');
     const json = await res.json();
     return json.data || [];
   } catch (err) {
@@ -92,7 +105,7 @@ export async function fetchPagesFromStrapi() {
 
 export async function fetchPageBySlugFromStrapi(slug) {
   try {
-    const res = await fetch(`${STRAPI_API_URL}?filters[slug][$eq]=${slug}`);
+    const res = await fetch(`${STRAPI_API_URL}?filters[slug][$eq]=${slug}&populate=*`);
     if (!res.ok) throw new Error('Error al obtener la página por slug');
     const json = await res.json();
     return json.data?.[0] || null;
@@ -114,7 +127,8 @@ export async function savePageToStrapi(pageData) {
       slug: pageData.slug,
       module: pageData.module || 'default',
       blocks: pageData.blocks,
-      pageSettings: pageData.pageSettings
+      pageSettings: pageData.pageSettings,
+      template: pageData.template || null
     }
   });
 
@@ -144,4 +158,70 @@ export async function deletePageFromStrapi(documentId) {
     throw new Error('Error al eliminar la página de Strapi');
   }
   return true;
+}
+
+export async function saveTemplateToStrapi(templateData) {
+  const body = JSON.stringify({
+    data: {
+      title: templateData.title,
+      description: templateData.description || '',
+      blocks: templateData.blocks,
+      pageSettings: templateData.pageSettings
+    }
+  });
+
+  const res = await fetch(STRAPI_TEMPLATES_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body,
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Error al guardar la plantilla: ${errText}`);
+  }
+
+  const json = await res.json();
+  return json.data;
+}
+
+export async function fetchTemplateByIdFromStrapi(documentId) {
+  try {
+    const res = await fetch(`${STRAPI_TEMPLATES_URL}/${documentId}`);
+    if (!res.ok) throw new Error('Error al obtener plantilla de Strapi');
+    const json = await res.json();
+    return json.data || null;
+  } catch (err) {
+    console.error(err);
+    return null;
+  }
+}
+
+export async function updateTemplateInStrapi(documentId, templateData) {
+  const body = JSON.stringify({
+    data: {
+      title: templateData.title,
+      description: templateData.description || '',
+      blocks: templateData.blocks,
+      pageSettings: templateData.pageSettings
+    }
+  });
+
+  const res = await fetch(`${STRAPI_TEMPLATES_URL}/${documentId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body,
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Error al actualizar la plantilla: ${errText}`);
+  }
+
+  const json = await res.json();
+  return json.data;
 }

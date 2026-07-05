@@ -1,6 +1,8 @@
 export const STORAGE_KEY = 'face-blocks-v1';
 export const SETTINGS_KEY = 'face-settings-v1';
 
+export const TUTORIAL_IMAGE_URL = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 400' width='100%' height='100%'><rect width='600' height='400' fill='%23f1f5f9' rx='12'/><rect width='560' height='360' x='20' y='20' fill='%23ffffff' rx='8' stroke='%23cbd5e1' stroke-width='2' stroke-dasharray='6 4'/><g transform='translate(280, 80)'><rect width='40' height='30' rx='4' fill='none' stroke='%230057b8' stroke-width='3'/><circle cx='12' cy='10' r='3' fill='%230057b8'/><path d='M4 26 L16 14 L24 22 L30 16 L36 26' fill='none' stroke='%230057b8' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/></g><text x='300' y='170' font-family='system-ui, sans-serif' font-size='22' font-weight='bold' fill='%230f172a' text-anchor='middle'>%C2%BFC%C3%B3mo cambiar esta imagen?</text><text x='300' y='210' font-family='system-ui, sans-serif' font-size='14' font-weight='bold' fill='%23475569' text-anchor='middle'>1. Haz clic sobre este bloque para seleccionarlo.</text><text x='300' y='240' font-family='system-ui, sans-serif' font-size='14' font-weight='bold' fill='%23475569' text-anchor='middle'>2. Ve al panel de propiedades en la derecha.</text><text x='300' y='270' font-family='system-ui, sans-serif' font-size='14' font-weight='bold' fill='%23475569' text-anchor='middle'>3. Reemplaza el texto del campo 'T%C3%ADtulo' o 'Imagen'</text><text x='300' y='295' font-family='system-ui, sans-serif' font-size='14' font-weight='bold' fill='%23475569' text-anchor='middle'>con la nueva URL de tu imagen.</text><rect width='180' height='36' x='210' y='325' fill='%230057b8' rx='18'/><text x='300' y='347' font-family='system-ui, sans-serif' font-size='14' font-weight='bold' fill='%23ffffff' text-anchor='middle'>Panel Propiedades</text></svg>";
+
 // Institutional UBB Branding
 export const UBB_BRANDING = {
   brandName: 'Facultad de Ciencias Empresariales',
@@ -86,8 +88,8 @@ export const blockTemplates = {
   },
   image: {
     type: 'image',
-    title: 'https://picsum.photos/900/350',
-    subtitle: 'Descripcion de imagen',
+    title: TUTORIAL_IMAGE_URL,
+    subtitle: 'Descripción de imagen',
     style: {
       ...defaultStyle,
       background: UBB_BRANDING.colors.white,
@@ -166,7 +168,7 @@ export const blockTemplates = {
       date: new Date().toISOString(),
       category: 'academic',
       author: '',
-      image: 'https://picsum.photos/400/300',
+      image: TUTORIAL_IMAGE_URL,
     },
     style: {
       ...defaultStyle,
@@ -252,17 +254,17 @@ export const blockTemplates = {
       items: [
         {
           title: 'Académico UBB se integra a grupo de evaluación Fondecyt de ANID',
-          image: 'https://picsum.photos/400/250?random=1',
+          image: TUTORIAL_IMAGE_URL,
           url: '#'
         },
         {
           title: 'Facultad de Ciencias Empresariales (FACE) inicia proceso de acreditación',
-          image: 'https://picsum.photos/400/250?random=2',
+          image: TUTORIAL_IMAGE_URL,
           url: '#'
         },
         {
           title: 'Estudiantes UBB ganan primer lugar en torneo nacional de innovación',
-          image: 'https://picsum.photos/400/250?random=3',
+          image: TUTORIAL_IMAGE_URL,
           url: '#'
         }
       ]
@@ -575,7 +577,7 @@ export const moduleTemplates = {
           date: new Date().toISOString(),
           category: 'academic',
           author: 'Departamento',
-          image: 'https://picsum.photos/400/300',
+          image: TUTORIAL_IMAGE_URL,
         },
         style: {
           ...defaultStyle,
@@ -594,7 +596,7 @@ export const moduleTemplates = {
           date: new Date().toISOString(),
           category: 'event',
           author: 'Departamento',
-          image: 'https://picsum.photos/400/300',
+          image: TUTORIAL_IMAGE_URL,
         },
         style: {
           ...defaultStyle,
@@ -613,7 +615,7 @@ export const moduleTemplates = {
           date: new Date().toISOString(),
           category: 'achievement',
           author: 'Departamento',
-          image: 'https://picsum.photos/400/300',
+          image: TUTORIAL_IMAGE_URL,
         },
         style: {
           ...defaultStyle,

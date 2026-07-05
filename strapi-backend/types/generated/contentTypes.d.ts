@@ -466,6 +466,39 @@ export interface ApiPagePage extends Struct.CollectionTypeSchema {
     pageSettings: Schema.Attribute.JSON;
     publishedAt: Schema.Attribute.DateTime;
     slug: Schema.Attribute.UID<'title'> & Schema.Attribute.Required;
+    template: Schema.Attribute.Relation<'manyToOne', 'api::template.template'>;
+    title: Schema.Attribute.String & Schema.Attribute.Required;
+    updatedAt: Schema.Attribute.DateTime;
+    updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+  };
+}
+
+export interface ApiTemplateTemplate extends Struct.CollectionTypeSchema {
+  collectionName: 'templates';
+  info: {
+    description: 'Plantillas predise\u00F1adas para el creador de p\u00E1ginas';
+    displayName: 'Template';
+    pluralName: 'templates';
+    singularName: 'template';
+  };
+  options: {
+    draftAndPublish: false;
+  };
+  attributes: {
+    blocks: Schema.Attribute.JSON;
+    createdAt: Schema.Attribute.DateTime;
+    createdBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
+      Schema.Attribute.Private;
+    description: Schema.Attribute.Text;
+    locale: Schema.Attribute.String & Schema.Attribute.Private;
+    localizations: Schema.Attribute.Relation<
+      'oneToMany',
+      'api::template.template'
+    > &
+      Schema.Attribute.Private;
+    pageSettings: Schema.Attribute.JSON;
+    publishedAt: Schema.Attribute.DateTime;
     title: Schema.Attribute.String & Schema.Attribute.Required;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
@@ -985,6 +1018,7 @@ declare module '@strapi/strapi' {
       'admin::transfer-token-permission': AdminTransferTokenPermission;
       'admin::user': AdminUser;
       'api::page.page': ApiPagePage;
+      'api::template.template': ApiTemplateTemplate;
       'plugin::content-releases.release': PluginContentReleasesRelease;
       'plugin::content-releases.release-action': PluginContentReleasesReleaseAction;
       'plugin::i18n.locale': PluginI18NLocale;

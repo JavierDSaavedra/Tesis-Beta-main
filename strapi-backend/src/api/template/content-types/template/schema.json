@@ -1,0 +1,29 @@
+{
+  "kind": "collectionType",
+  "collectionName": "templates",
+  "info": {
+    "singularName": "template",
+    "pluralName": "templates",
+    "displayName": "Template",
+    "description": "Plantillas prediseñadas para el creador de páginas"
+  },
+  "options": {
+    "draftAndPublish": false
+  },
+  "pluginOptions": {},
+  "attributes": {
+    "title": {
+      "type": "string",
+      "required": true
+    },
+    "description": {
+      "type": "text"
+    },
+    "blocks": {
+      "type": "json"
+    },
+    "pageSettings": {
+      "type": "json"
+    }
+  }
+}

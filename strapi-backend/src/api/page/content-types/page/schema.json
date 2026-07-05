@@ -36,6 +36,11 @@
     },
     "pageSettings": {
       "type": "json"
+    },
+    "template": {
+      "type": "relation",
+      "relation": "manyToOne",
+      "target": "api::template.template"
     }
   }
 }

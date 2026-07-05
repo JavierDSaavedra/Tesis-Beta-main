@@ -13,7 +13,11 @@ import {
   importCurrentProject,
   clearCurrentProject,
   fetchPagesFromStrapi,
+  fetchTemplatesFromStrapi,
+  fetchTemplateByIdFromStrapi,
   savePageToStrapi,
+  saveTemplateToStrapi,
+  updateTemplateInStrapi,
   deletePageFromStrapi,
   STRAPI_BASE_URL,
 } from '../../backend/page-builder/storage';
@@ -51,45 +55,211 @@ export default function PageBuilder() {
 
   // Strapi state
   const [strapiPages, setStrapiPages] = useState([]);
+  const [strapiTemplates, setStrapiTemplates] = useState([]);
   const [selectedPageId, setSelectedPageId] = useState('');
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [pageTitle, setPageTitle] = useState('Nueva Página');
   const [pageSlug, setPageSlug] = useState('nueva-pagina');
-  const [saveStatus, setSaveStatus] = useState('');
+  
+  // Advanced UX States
+  const [lastSavedState, setLastSavedState] = useState({
+    blocks: starters,
+    pageSettings: defaultPageSettings,
+    title: 'Nueva Página',
+    slug: 'nueva-pagina',
+    template: ''
+  });
+  const [toasts, setToasts] = useState([]);
+  const [isCmsModalOpen, setIsCmsModalOpen] = useState(false);
+  const [cmsSearch, setCmsSearch] = useState('');
+  const [cmsModuleFilter, setCmsModuleFilter] = useState('all');
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoadingPages, setIsLoadingPages] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isEditingTemplate, setIsEditingTemplate] = useState(false);
+
+  const addToast = (message, type = 'success') => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id));
+    }, 4000);
+  };
+
+  const hasTemplate = !!selectedTemplateId && !isEditingTemplate;
+
+  const isDirty = useMemo(() => {
+    if (!isHydrated) return false;
+    return (
+      JSON.stringify(blocks) !== JSON.stringify(lastSavedState.blocks) ||
+      JSON.stringify(pageSettings) !== JSON.stringify(lastSavedState.pageSettings) ||
+      pageTitle !== lastSavedState.title ||
+      pageSlug !== lastSavedState.slug ||
+      selectedTemplateId !== lastSavedState.template
+    );
+  }, [blocks, pageSettings, pageTitle, pageSlug, selectedTemplateId, lastSavedState, isHydrated]);
 
   const loadPages = async () => {
+    setIsLoadingPages(true);
     try {
       const pages = await fetchPagesFromStrapi();
       setStrapiPages(pages);
+      
+      const templates = await fetchTemplatesFromStrapi();
+      setStrapiTemplates(templates);
+
+      // Auto-load page or template if query parameters exist
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        const pageParam = params.get('page');
+        const templateEditParam = params.get('templateEdit');
+
+        if (templateEditParam) {
+          const template = templates.find(t => t.documentId === templateEditParam || String(t.id) === String(templateEditParam));
+          if (template) {
+            const tempBlocks = template.blocks || [];
+            const tempSet = template.pageSettings || defaultPageSettings;
+            const title = template.title || '';
+
+            setSelectedTemplateId(template.documentId || template.id);
+            setIsEditingTemplate(true);
+            setIsAdmin(true);
+            setBlocks(tempBlocks);
+            setPageSettings(tempSet);
+            setPageTitle(title);
+            setPageSlug('');
+            setLastSavedState({
+              blocks: tempBlocks,
+              pageSettings: tempSet,
+              title,
+              slug: '',
+              template: template.documentId || template.id
+            });
+            addToast(`Plantilla "${title}" cargada para edición visual`, 'info');
+          }
+        } else if (pageParam) {
+          const page = pages.find(p => p.documentId === pageParam || String(p.id) === String(pageParam));
+          if (page) {
+            const pageBlocks = page.blocks || [];
+            const pageSet = page.pageSettings || defaultPageSettings;
+            const title = page.title || '';
+            const slug = page.slug || '';
+            const tId = page.template?.documentId || page.template?.id || '';
+
+            setSelectedPageId(page.documentId || page.id);
+            setSelectedTemplateId(tId);
+            setIsEditingTemplate(false);
+            setBlocks(pageBlocks);
+            setPageSettings(pageSet);
+            setPageTitle(title);
+            setPageSlug(slug);
+            setLastSavedState({
+              blocks: pageBlocks,
+              pageSettings: pageSet,
+              title,
+              slug,
+              template: tId
+            });
+            addToast(`Página "${title}" cargada automáticamente`, 'info');
+          }
+        }
+      }
     } catch (err) {
       console.error('No se pudieron cargar las páginas de Strapi:', err);
+      addToast('No se pudieron cargar las páginas de Strapi', 'error');
+    } finally {
+      setIsLoadingPages(false);
     }
   };
 
-  const handleSelectStrapiPage = (e) => {
-    const val = e.target.value;
-    setSelectedPageId(val);
-    if (val === '') {
+  const selectPage = (page) => {
+    if (isDirty) {
+      if (!window.confirm('Tienes cambios sin guardar en el lienzo. ¿Seguro que deseas continuar y perder los cambios actuales?')) {
+        return;
+      }
+    }
+    
+    if (!page) {
+      // Nueva página
+      setSelectedPageId('');
+      setSelectedTemplateId('');
       setBlocks(starters);
       setPageSettings(defaultPageSettings);
       setPageTitle('Nueva Página');
       setPageSlug('nueva-pagina');
+      setLastSavedState({
+        blocks: starters,
+        pageSettings: defaultPageSettings,
+        title: 'Nueva Página',
+        slug: 'nueva-pagina',
+        template: ''
+      });
+      addToast('Nueva página creada en el editor', 'info');
     } else {
-      const page = strapiPages.find(p => p.documentId === val || String(p.id) === String(val));
-      if (page) {
-        setBlocks(page.blocks || []);
-        setPageSettings(page.pageSettings || defaultPageSettings);
-        setPageTitle(page.title || '');
-        setPageSlug(page.slug || '');
-      }
+      const pageBlocks = page.blocks || [];
+      const pageSet = page.pageSettings || defaultPageSettings;
+      const title = page.title || '';
+      const slug = page.slug || '';
+      const tId = page.template?.documentId || page.template?.id || '';
+      
+      setSelectedPageId(page.documentId || page.id);
+      setSelectedTemplateId(tId);
+      setBlocks(pageBlocks);
+      setPageSettings(pageSet);
+      setPageTitle(title);
+      setPageSlug(slug);
+      setLastSavedState({
+        blocks: pageBlocks,
+        pageSettings: pageSet,
+        title,
+        slug,
+        template: tId
+      });
+      addToast(`Página "${title}" cargada con éxito`, 'success');
     }
+    setIsCmsModalOpen(false);
   };
 
   const handleSaveToStrapi = async () => {
-    if (!pageTitle.trim() || !pageSlug.trim()) {
-      setSaveStatus('⚠️ Título y slug requeridos');
+    if (isEditingTemplate) {
+      if (!pageTitle.trim()) {
+        addToast('⚠️ Título requerido para la plantilla', 'warning');
+        return;
+      }
+      setIsSaving(true);
+      try {
+        const saved = await updateTemplateInStrapi(selectedTemplateId, {
+          title: pageTitle,
+          blocks,
+          pageSettings
+        });
+        addToast('✅ Plantilla actualizada con éxito', 'success');
+        setLastSavedState({
+          blocks: saved.blocks || blocks,
+          pageSettings: saved.pageSettings || pageSettings,
+          title: saved.title || pageTitle,
+          slug: '',
+          template: selectedTemplateId
+        });
+        await loadPages();
+      } catch (err) {
+        addToast(`❌ Error al actualizar plantilla: ${err.message}`, 'error');
+      } finally {
+        setIsSaving(false);
+      }
       return;
     }
-    setSaveStatus('Guardando...');
+
+    if (!isAdmin && !selectedTemplateId) {
+      addToast('⚠️ Debes seleccionar una plantilla para poder publicar una página', 'error');
+      return;
+    }
+
+    if (!pageTitle.trim() || !pageSlug.trim()) {
+      addToast('⚠️ Título y slug requeridos', 'warning');
+      return;
+    }
+    setIsSaving(true);
     try {
       const pageData = {
         title: pageTitle,
@@ -97,38 +267,74 @@ export default function PageBuilder() {
         module: pageSettings.module,
         blocks,
         pageSettings,
+        template: selectedTemplateId || null,
       };
       if (selectedPageId) {
         pageData.documentId = selectedPageId;
       }
       const saved = await savePageToStrapi(pageData);
-      setSaveStatus('✅ ¡Guardado con éxito!');
-      if (!selectedPageId && saved) {
-        setSelectedPageId(saved.documentId || saved.id);
-      }
+      
+      const newPageId = saved.documentId || saved.id;
+      setSelectedPageId(newPageId);
+      
+      const savedBlocks = saved.blocks || blocks;
+      const savedSettings = saved.pageSettings || pageSettings;
+      const savedTitle = saved.title || pageTitle;
+      const savedSlug = saved.slug || pageSlug;
+      const savedTemplateId = saved.template?.documentId || saved.template?.id || '';
+      setSelectedTemplateId(savedTemplateId);
+      
+      setLastSavedState({
+        blocks: savedBlocks,
+        pageSettings: savedSettings,
+        title: savedTitle,
+        slug: savedSlug,
+        template: savedTemplateId
+      });
+      
+      addToast(selectedPageId ? '✅ Página actualizada con éxito' : '✅ Página publicada con éxito', 'success');
       await loadPages();
-      setTimeout(() => setSaveStatus(''), 3000);
     } catch (err) {
-      setSaveStatus(`❌ Error: ${err.message}`);
+      addToast(`❌ Error al guardar: ${err.message}`, 'error');
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  const handleDeleteFromStrapi = async () => {
-    if (!selectedPageId) return;
-    if (!window.confirm('¿Seguro que deseas eliminar esta página de Strapi?')) return;
-    setSaveStatus('Eliminando...');
+
+  const handleDeleteFromStrapi = async (pageIdToDelete = null) => {
+    const id = pageIdToDelete || selectedPageId;
+    if (!id) return;
+    
+    const targetPage = strapiPages.find(p => p.documentId === id || String(p.id) === String(id));
+    const title = targetPage ? targetPage.title : 'esta página';
+    
+    if (!window.confirm(`¿Seguro que deseas eliminar la página "${title}" de Strapi? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+    
     try {
-      await deletePageFromStrapi(selectedPageId);
-      setSaveStatus('🗑️ Página eliminada');
-      setSelectedPageId('');
-      setBlocks(starters);
-      setPageSettings(defaultPageSettings);
-      setPageTitle('Nueva Página');
-      setPageSlug('nueva-pagina');
+      await deletePageFromStrapi(id);
+      addToast('🗑️ Página eliminada con éxito', 'success');
+      
+      if (id === selectedPageId) {
+        setSelectedPageId('');
+        setSelectedTemplateId('');
+        setBlocks(starters);
+        setPageSettings(defaultPageSettings);
+        setPageTitle('Nueva Página');
+        setPageSlug('nueva-pagina');
+        setLastSavedState({
+          blocks: starters,
+          pageSettings: defaultPageSettings,
+          title: 'Nueva Página',
+          slug: 'nueva-pagina',
+          template: ''
+        });
+      }
       await loadPages();
-      setTimeout(() => setSaveStatus(''), 3000);
     } catch (err) {
-      setSaveStatus(`❌ Error: ${err.message}`);
+      addToast(`❌ Error al eliminar: ${err.message}`, 'error');
     }
   };
 
@@ -139,11 +345,34 @@ export default function PageBuilder() {
     });
   };
 
+  // Keyboard shortcut Ctrl + S
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        handleSaveToStrapi();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [blocks, pageSettings, pageTitle, pageSlug, selectedPageId, lastSavedState, isHydrated]);
+
   useEffect(() => {
     const initial = loadInitialBlocks();
+    const settings = loadPageSettings();
     setBlocks(initial);
-    setPageSettings(loadPageSettings());
+    setPageSettings(settings);
     setIsHydrated(true);
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      setIsAdmin(params.get('admin') === 'true');
+    }
+    setLastSavedState({
+      blocks: initial,
+      pageSettings: settings,
+      title: 'Nueva Página',
+      slug: 'nueva-pagina'
+    });
     if (initial && initial.length > 0) {
       setSelectedId(initial[0].id);
     }
@@ -226,6 +455,10 @@ export default function PageBuilder() {
   const selectedInlineEditorStyle = selectedBlock ? positionFloatingPanel(selectedBlock, 324, 286, 20) : null;
 
   const addBlock = (type, insertIndex = null) => {
+    if (hasTemplate) {
+      addToast('⚠️ No se pueden añadir bloques en páginas basadas en plantillas', 'warning');
+      return;
+    }
     const newBlock = createBlock(type);
     if (!newBlock) {
       return;
@@ -278,6 +511,7 @@ export default function PageBuilder() {
   };
 
   const removeSelected = () => {
+    if (hasTemplate) return;
     if (!selectedId || blocks.length === 1) {
       return;
     }
@@ -290,6 +524,7 @@ export default function PageBuilder() {
   };
 
   const duplicateSelected = () => {
+    if (hasTemplate) return;
     if (!selectedId) return;
     const original = blocks.find((b) => b.id === selectedId);
     if (!original) return;
@@ -306,6 +541,7 @@ export default function PageBuilder() {
   };
 
   const duplicateBlockById = (id) => {
+    if (hasTemplate) return;
     const original = blocks.find((b) => b.id === id);
     if (!original) return;
     const copy = {
@@ -317,6 +553,7 @@ export default function PageBuilder() {
   };
 
   const moveLayer = (id, direction) => {
+    if (hasTemplate) return;
     setBlocks((current) => {
       const idx = current.findIndex((b) => b.id === id);
       if (idx === -1) return current;
@@ -342,6 +579,7 @@ export default function PageBuilder() {
   };
 
   const startDrag = (event, id) => {
+    if (hasTemplate) return;
     if (event.target.closest('.pb-resize-handle')) {
       return;
     }
@@ -366,6 +604,7 @@ export default function PageBuilder() {
   };
 
   const startResize = (event, id) => {
+    if (hasTemplate) return;
     event.preventDefault();
     event.stopPropagation();
     setSelectedId(id);
@@ -388,6 +627,10 @@ export default function PageBuilder() {
 
   const onDropAt = (event, targetId = null) => {
     event.preventDefault();
+    if (hasTemplate) {
+      addToast('⚠️ No se pueden añadir bloques en páginas basadas en plantillas', 'warning');
+      return;
+    }
     const payload = event.dataTransfer.getData('text/plain');
     if (!payload) {
       return;
@@ -581,6 +824,19 @@ export default function PageBuilder() {
     setSelectedId(preparedBlocks[0]?.id ?? null);
   };
 
+  const filteredPages = useMemo(() => {
+    return strapiPages.filter(page => {
+      const title = (page.title || '').toLowerCase();
+      const slug = (page.slug || '').toLowerCase();
+      const search = cmsSearch.toLowerCase();
+      
+      const matchesSearch = title.includes(search) || slug.includes(search);
+      const matchesModule = cmsModuleFilter === 'all' || (page.module || 'default') === cmsModuleFilter;
+      
+      return matchesSearch && matchesModule;
+    });
+  }, [strapiPages, cmsSearch, cmsModuleFilter]);
+
   return (
     <main className={`pb-shell ${pageSettings.darkMode ? 'is-dark' : ''}`}>
       <header className="pb-topbar">
@@ -593,55 +849,87 @@ export default function PageBuilder() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          {saveStatus && (
-            <span className="pb-status-text" style={{ fontSize: '12px', color: 'var(--ubb-blue)', fontWeight: 'bold', marginRight: '8px' }}>
-              {saveStatus}
+          {isEditingTemplate ? (
+            <div className="pb-active-page-info" style={{ borderColor: '#10b981', background: 'rgba(16, 185, 129, 0.1)' }}>
+              <span className="pb-page-icon">🎨</span>
+              <div className="pb-page-meta">
+                <span className="pb-page-meta-title" title={pageTitle} style={{ color: '#10b981' }}>{pageTitle}</span>
+                <span className="pb-page-meta-slug" style={{ color: '#047857', fontWeight: 'bold' }}>[Editando Plantilla]</span>
+              </div>
+            </div>
+          ) : selectedPageId ? (
+            <div className="pb-active-page-info">
+              <span className="pb-page-icon">📄</span>
+              <div className="pb-page-meta">
+                <span className="pb-page-meta-title" title={pageTitle}>{pageTitle}</span>
+                <span className="pb-page-meta-slug" title={pageSlug}>/{pageSlug}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="pb-active-page-info is-new">
+              <span className="pb-page-icon">✨</span>
+              <div className="pb-page-meta">
+                <span className="pb-page-meta-title">Nueva Página</span>
+                <span className="pb-page-meta-slug">Sin publicar</span>
+              </div>
+            </div>
+          )}
+
+          {isDirty && (
+            <span className="pb-dirty-badge" title="Tienes cambios sin guardar en esta página">
+              ● Modificado
             </span>
           )}
-          <select
-            value={selectedPageId}
-            onChange={handleSelectStrapiPage}
-            style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid var(--ubb-blue-soft)', background: 'var(--pb-bg)', color: 'var(--pb-text)' }}
+
+          <button
+            type="button"
+            className="pb-cms-manager-btn"
+            onClick={() => { loadPages(); setIsCmsModalOpen(true); }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
           >
-            <option value="">-- Nueva Página --</option>
-            {strapiPages.map(page => (
-              <option key={page.documentId || page.id} value={page.documentId || page.id}>
-                📄 {page.title} ({page.slug})
-              </option>
-            ))}
-          </select>
+            <span>📁</span> Gestor CMS
+            {strapiPages.length > 0 && <span className="pb-cms-count-badge">{strapiPages.length}</span>}
+          </button>
+
           <select
             value={pageSettings.module}
             onChange={(e) => setPageSettings({ ...pageSettings, module: e.target.value })}
+            style={{ padding: '8px 12px', borderRadius: '6px' }}
           >
             <option value="default">Estándar</option>
             <option value="academic">Portal Académico</option>
             <option value="congress">Congreso/Evento</option>
             <option value="diffusion">Difusión Institucional</option>
           </select>
+
           <button
             type="button"
-            className="pb-export"
+            className={`pb-export ${isSaving ? 'is-saving' : ''} ${isDirty ? 'is-dirty' : ''}`}
             onClick={handleSaveToStrapi}
-            style={{ background: 'var(--ubb-orange, #f39200)', color: '#fff', fontWeight: 'bold' }}
+            disabled={isSaving}
+            style={{
+              background: selectedPageId ? 'linear-gradient(135deg, var(--ubb-blue), var(--ubb-blue-light))' : 'linear-gradient(135deg, #f59e0b, #d97706)',
+              color: '#fff',
+              fontWeight: 'bold',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              opacity: isSaving ? 0.7 : 1
+            }}
           >
-            Guardar en Strapi
+            {isSaving ? (
+              <span className="pb-btn-spinner"></span>
+            ) : (
+              <span>💾</span>
+            )}
+            {(selectedPageId || isEditingTemplate) ? 'Actualizar' : 'Publicar'}
           </button>
-          {selectedPageId && (
-            <button
-              type="button"
-              className="pb-delete"
-              onClick={handleDeleteFromStrapi}
-              style={{ background: '#ef4444', color: '#fff' }}
-            >
-              Eliminar
-            </button>
-          )}
+
           <a
             href={`${STRAPI_BASE_URL}/admin`}
             target="_blank"
             rel="noopener noreferrer"
-            className="pb-export"
+            className="pb-export pb-cms-link"
             style={{
               background: 'linear-gradient(135deg, #4945ff, #7e7bff)',
               color: '#fff',
@@ -659,6 +947,7 @@ export default function PageBuilder() {
           <button
             type="button"
             className="pb-export"
+            style={{ background: '#64748b' }}
             onClick={() => exportHtmlDocument(blocks, pageSettings)}
           >
             Exportar HTML
@@ -763,19 +1052,25 @@ export default function PageBuilder() {
             {leftActiveTab === 'blocks' && (
               <>
                 <h3>Bloques ({pageSettings.module})</h3>
-                <div className="pb-actions">
-                  {getAvailableBlockTypes(pageSettings.module).map((blockType) => (
-                    <div
-                      key={blockType}
-                      className="pb-block-chip"
-                      draggable
-                      onDragStart={(event) => onPaletteDragStart(event, blockType)}
-                      title={`Arrastra ${blockType} al lienzo`}
-                    >
-                        {blockTypeLabels[blockType] || blockType}
-                    </div>
-                  ))}
-                </div>
+                {hasTemplate ? (
+                  <div className="pb-template-locked-notice" style={{ padding: '12px', background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', borderRadius: '6px', fontSize: '13px', fontWeight: '500', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                    🔒 El diseño está bloqueado por la plantilla de la página. No se pueden agregar nuevos bloques.
+                  </div>
+                ) : (
+                  <div className="pb-actions">
+                    {getAvailableBlockTypes(pageSettings.module).map((blockType) => (
+                      <div
+                        key={blockType}
+                        className="pb-block-chip"
+                        draggable
+                        onDragStart={(event) => onPaletteDragStart(event, blockType)}
+                        title={`Arrastra ${blockType} al lienzo`}
+                      >
+                          {blockTypeLabels[blockType] || blockType}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </>
             )}
 
@@ -816,6 +1111,36 @@ export default function PageBuilder() {
                     </button>
                   ))}
                 </div>
+
+                {strapiTemplates.length > 0 && (
+                  <>
+                    <h3 style={{ marginTop: '20px', borderTop: '1px solid var(--ubb-blue-soft)', paddingTop: '16px' }}>Plantillas CMS Strapi</h3>
+                    <div className="pb-templates">
+                      {strapiTemplates.map((template) => (
+                        <button
+                          key={template.documentId || template.id}
+                          type="button"
+                          className="pb-template-btn"
+                          style={{ borderLeft: '4px solid #4945ff' }}
+                          onClick={() => {
+                            if (window.confirm(`¿Seguro que deseas aplicar la plantilla "${template.title}"? Reemplazará todos los bloques y el diseño quedará bloqueado.`)) {
+                              setSelectedTemplateId(template.documentId || template.id);
+                              setBlocks(template.blocks || []);
+                              setPageSettings({
+                                ...defaultPageSettings,
+                                ...(template.pageSettings || {})
+                              });
+                              addToast(`Plantilla "${template.title}" aplicada`, 'success');
+                            }
+                          }}
+                        >
+                          <strong>{template.title}</strong>
+                          <span>{template.description || 'Definida en Strapi por Administrador'}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
               </>
             )}
           </aside>
@@ -847,6 +1172,29 @@ export default function PageBuilder() {
             background: pageSettings.darkMode ? '#10141c' : '#ffffff',
           }}
         >
+          {hasTemplate && (
+            <div className="pb-template-banner" style={{
+              position: 'absolute',
+              top: '12px',
+              left: '12px',
+              right: '12px',
+              zIndex: 99,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              padding: '10px 16px',
+              background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+              color: 'white',
+              fontWeight: '600',
+              fontSize: '13px',
+              borderRadius: '8px',
+              boxShadow: '0 4px 12px rgba(29, 78, 216, 0.25)'
+            }}>
+              <span>🔒 MODO PLANTILLA: El diseño estructural y la posición de los bloques están bloqueados. Solo puedes editar el contenido.</span>
+            </div>
+          )}
+
           <div className="pb-ruler pb-ruler-v" style={{ left: `${pageSettings.canvasWidth / 2}px` }} />
           <div className="pb-ruler pb-ruler-h" style={{ top: `${pageSettings.canvasHeight / 2}px` }} />
 
@@ -867,7 +1215,7 @@ export default function PageBuilder() {
           {blocks.map((block) => (
             <article
               key={block.id}
-              className={selectedId === block.id ? 'pb-selected' : ''}
+              className={`${selectedId === block.id ? 'pb-selected' : ''} ${hasTemplate ? 'pb-locked-block' : ''}`}
               onClick={(event) => {
                 event.stopPropagation();
                 setSelectedId(block.id);
@@ -888,15 +1236,18 @@ export default function PageBuilder() {
                 top: `${block.style?.y ?? 0}px`,
                 width: `${block.style?.width ?? 280}px`,
                 height: `${block.style?.height ?? 140}px`,
+                cursor: hasTemplate ? 'pointer' : 'move'
               }}
             >
               {renderBlock(block)}
-              <button
-                type="button"
-                aria-label="Redimensionar bloque"
-                className="pb-resize-handle"
-                onMouseDown={(event) => startResize(event, block.id)}
-              />
+              {!hasTemplate && (
+                <button
+                  type="button"
+                  aria-label="Redimensionar bloque"
+                  className="pb-resize-handle"
+                  onMouseDown={(event) => startResize(event, block.id)}
+                />
+              )}
             </article>
           ))}
 
@@ -926,68 +1277,95 @@ export default function PageBuilder() {
                     <small>Abrir panel</small>
                   </span>
                 </button>
-                <button
-                  type="button"
-                  className="pb-block-toolbar__action"
-                  title="Duplicar bloque"
-                  onClick={() => duplicateBlockById(selectedBlock.id)}
-                  aria-label="Duplicar"
-                >
-                  <span className="pb-block-toolbar__icon">📄</span>
-                  <span>
-                    <strong>Duplicar</strong>
-                    <small>Crear copia</small>
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  className="pb-block-toolbar__action pb-block-toolbar__action--danger"
-                  title="Eliminar bloque"
-                  onClick={() => removeSelected()}
-                  aria-label="Eliminar"
-                >
-                  <span className="pb-block-toolbar__icon">🗑️</span>
-                  <span>
-                    <strong>Eliminar</strong>
-                    <small>Borrar bloque</small>
-                  </span>
-                </button>
+                {!hasTemplate && (
+                  <>
+                    <button
+                      type="button"
+                      className="pb-block-toolbar__action"
+                      title="Duplicar bloque"
+                      onClick={() => duplicateBlockById(selectedBlock.id)}
+                      aria-label="Duplicar"
+                    >
+                      <span className="pb-block-toolbar__icon">📄</span>
+                      <span>
+                        <strong>Duplicar</strong>
+                        <small>Crear copia</small>
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      className="pb-block-toolbar__action pb-block-toolbar__action--danger"
+                      title="Eliminar bloque"
+                      onClick={() => removeSelected()}
+                      aria-label="Eliminar"
+                    >
+                      <span className="pb-block-toolbar__icon">🗑️</span>
+                      <span>
+                        <strong>Eliminar</strong>
+                        <small>Borrar bloque</small>
+                      </span>
+                    </button>
+                  </>
+                )}
               </div>
 
-              <div className="pb-block-toolbar__divider" />
+              {!hasTemplate && (
+                <>
+                  <div className="pb-block-toolbar__divider" />
 
-              <div className="pb-block-toolbar__group pb-block-toolbar__group--compact">
-                <button
-                  type="button"
-                  className="pb-block-toolbar__mini"
-                  title="Subir capa"
-                  onClick={() => moveLayer(selectedBlock.id, 'up')}
-                  aria-label="Subir"
-                >
-                  <span>⬆️</span>
-                  <small>Subir</small>
-                </button>
-                <button
-                  type="button"
-                  className="pb-block-toolbar__mini"
-                  title="Bajar capa"
-                  onClick={() => moveLayer(selectedBlock.id, 'down')}
-                  aria-label="Bajar"
-                >
-                  <span>⬇️</span>
-                  <small>Bajar</small>
-                </button>
-                <button
-                  type="button"
-                  className="pb-block-toolbar__mini"
-                  title="Deseleccionar"
-                  onClick={() => setSelectedId(null)}
-                  aria-label="Deseleccionar"
-                >
-                  <span>✕</span>
-                  <small>Quitar</small>
-                </button>
-              </div>
+                  <div className="pb-block-toolbar__group pb-block-toolbar__group--compact">
+                    <button
+                      type="button"
+                      className="pb-block-toolbar__mini"
+                      title="Subir capa"
+                      onClick={() => moveLayer(selectedBlock.id, 'up')}
+                      aria-label="Subir"
+                    >
+                      <span>⬆️</span>
+                      <small>Subir</small>
+                    </button>
+                    <button
+                      type="button"
+                      className="pb-block-toolbar__mini"
+                      title="Bajar capa"
+                      onClick={() => moveLayer(selectedBlock.id, 'down')}
+                      aria-label="Bajar"
+                    >
+                      <span>⬇️</span>
+                      <small>Bajar</small>
+                    </button>
+                    <button
+                      type="button"
+                      className="pb-block-toolbar__mini"
+                      title="Deseleccionar"
+                      onClick={() => setSelectedId(null)}
+                      aria-label="Deseleccionar"
+                    >
+                      <span>✕</span>
+                      <small>Quitar</small>
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {hasTemplate && (
+                <>
+                  <div className="pb-block-toolbar__divider" />
+                  <div className="pb-block-toolbar__group pb-block-toolbar__group--compact">
+                    <button
+                      type="button"
+                      className="pb-block-toolbar__mini"
+                      title="Deseleccionar"
+                      onClick={() => setSelectedId(null)}
+                      aria-label="Deseleccionar"
+                      style={{ flex: 1 }}
+                    >
+                      <span>✕</span>
+                      <small>Cerrar menú</small>
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           ) : null}
           {editingBlockId && selectedBlock && editingBlockId === selectedBlock.id && selectedInlineEditorStyle ? (
@@ -1211,46 +1589,54 @@ export default function PageBuilder() {
                         onChange={(event) => updateSelectedStyle('radius', Number(event.target.value))}
                       />
                     </label>
-                    <label>
-                      Posicion X
-                      <input
-                        type="range"
-                        min="0"
-                        max={Math.max(0, pageSettings.canvasWidth - (selectedBlock.style?.width ?? 120))}
-                        value={selectedBlock.style?.x ?? 0}
-                        onChange={(event) => updateSelectedStyle('x', Number(event.target.value))}
-                      />
-                    </label>
-                    <label>
-                      Posicion Y
-                      <input
-                        type="range"
-                        min="0"
-                        max={Math.max(0, pageSettings.canvasHeight - (selectedBlock.style?.height ?? 80))}
-                        value={selectedBlock.style?.y ?? 0}
-                        onChange={(event) => updateSelectedStyle('y', Number(event.target.value))}
-                      />
-                    </label>
-                    <label>
-                      Ancho bloque
-                      <input
-                        type="range"
-                        min="120"
-                        max={Math.max(120, pageSettings.canvasWidth - (selectedBlock.style?.x ?? 0))}
-                        value={selectedBlock.style?.width ?? 320}
-                        onChange={(event) => updateSelectedStyle('width', Number(event.target.value))}
-                      />
-                    </label>
-                    <label>
-                      Alto bloque
-                      <input
-                        type="range"
-                        min="80"
-                        max={Math.max(80, pageSettings.canvasHeight - (selectedBlock.style?.y ?? 0))}
-                        value={selectedBlock.style?.height ?? 140}
-                        onChange={(event) => updateSelectedStyle('height', Number(event.target.value))}
-                      />
-                    </label>
+                    {hasTemplate ? (
+                      <div className="pb-template-locked-fields" style={{ padding: '10px', background: 'rgba(245, 158, 11, 0.1)', color: '#d97706', borderRadius: '6px', fontSize: '12px', marginTop: '12px', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
+                        ℹ️ La posición y dimensiones de los bloques están fijadas por la plantilla.
+                      </div>
+                    ) : (
+                      <>
+                        <label>
+                          Posicion X
+                          <input
+                            type="range"
+                            min="0"
+                            max={Math.max(0, pageSettings.canvasWidth - (selectedBlock.style?.width ?? 120))}
+                            value={selectedBlock.style?.x ?? 0}
+                            onChange={(event) => updateSelectedStyle('x', Number(event.target.value))}
+                          />
+                        </label>
+                        <label>
+                          Posicion Y
+                          <input
+                            type="range"
+                            min="0"
+                            max={Math.max(0, pageSettings.canvasHeight - (selectedBlock.style?.height ?? 80))}
+                            value={selectedBlock.style?.y ?? 0}
+                            onChange={(event) => updateSelectedStyle('y', Number(event.target.value))}
+                          />
+                        </label>
+                        <label>
+                          Ancho bloque
+                          <input
+                            type="range"
+                            min="120"
+                            max={Math.max(120, pageSettings.canvasWidth - (selectedBlock.style?.x ?? 0))}
+                            value={selectedBlock.style?.width ?? 320}
+                            onChange={(event) => updateSelectedStyle('width', Number(event.target.value))}
+                          />
+                        </label>
+                        <label>
+                          Alto bloque
+                          <input
+                            type="range"
+                            min="80"
+                            max={Math.max(80, pageSettings.canvasHeight - (selectedBlock.style?.y ?? 0))}
+                            value={selectedBlock.style?.height ?? 140}
+                            onChange={(event) => updateSelectedStyle('height', Number(event.target.value))}
+                          />
+                        </label>
+                      </>
+                    )}
                   </div>
                 ) : (
                   <p>Selecciona un bloque para editarlo.</p>
@@ -1271,6 +1657,176 @@ export default function PageBuilder() {
           </aside>
         )}
       </section>
+
+      {/* Gestor de Páginas CMS Modal */}
+      {isCmsModalOpen && (
+        <div className="pb-modal-overlay" onClick={() => setIsCmsModalOpen(false)}>
+          <div className="pb-modal-container" onClick={(e) => e.stopPropagation()}>
+            <div className="pb-modal-header">
+              <h2>Gestor de Páginas CMS Strapi</h2>
+              <button className="pb-modal-close" onClick={() => setIsCmsModalOpen(false)}>✕</button>
+            </div>
+            
+            <div className="pb-modal-toolbar">
+              <div className="pb-modal-search-wrapper">
+                <span className="pb-modal-search-icon">🔍</span>
+                <input
+                  type="text"
+                  placeholder="Buscar por título o slug..."
+                  value={cmsSearch}
+                  onChange={(e) => setCmsSearch(e.target.value)}
+                  className="pb-modal-search"
+                />
+              </div>
+              
+              <div className="pb-modal-filters">
+                <select
+                  value={cmsModuleFilter}
+                  onChange={(e) => setCmsModuleFilter(e.target.value)}
+                  className="pb-modal-filter"
+                >
+                  <option value="all">Todos los Módulos</option>
+                  <option value="default">Estándar</option>
+                  <option value="academic">Portal Académico</option>
+                  <option value="congress">Congreso/Evento</option>
+                  <option value="diffusion">Difusión Institucional</option>
+                </select>
+                
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      className="pb-modal-new-btn"
+                      onClick={() => selectPage(null)}
+                    >
+                      ➕ Página en Blanco
+                    </button>
+                  )}
+                  {strapiTemplates.length > 0 && (
+                    <select
+                      className="pb-modal-filter"
+                      style={{ background: 'var(--ubb-blue)', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
+                      onChange={(e) => {
+                        const templateId = e.target.value;
+                        if (templateId) {
+                          const template = strapiTemplates.find(t => t.documentId === templateId || String(t.id) === String(templateId));
+                          if (template) {
+                            if (isDirty) {
+                              if (!window.confirm('Tienes cambios sin guardar en el lienzo. ¿Seguro que deseas continuar y perder los cambios actuales?')) {
+                                e.target.value = '';
+                                return;
+                              }
+                            }
+                            setSelectedPageId('');
+                            setSelectedTemplateId(template.documentId || template.id);
+                            setBlocks(template.blocks || []);
+                            setPageSettings({
+                              ...defaultPageSettings,
+                              ...(template.pageSettings || {})
+                            });
+                            setPageTitle(`Nueva Página - ${template.title}`);
+                            setPageSlug(`nueva-pagina-${(template.title || '').toLowerCase().replace(/[^a-z0-9]+/g, '-')}`);
+                            setLastSavedState({
+                              blocks: template.blocks || [],
+                              pageSettings: template.pageSettings || defaultPageSettings,
+                              title: `Nueva Página - ${template.title}`,
+                              slug: `nueva-pagina-${(template.title || '').toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+                              template: template.documentId || template.id
+                            });
+                            setIsCmsModalOpen(false);
+                            addToast(`Página creada usando plantilla "${template.title}"`, 'success');
+                          }
+                        }
+                        e.target.value = '';
+                      }}
+                      defaultValue=""
+                    >
+                      <option value="" disabled>➕ Crear desde Plantilla...</option>
+                      {strapiTemplates.map(t => (
+                        <option key={t.documentId || t.id} value={t.documentId || t.id} style={{ color: '#000', background: '#fff' }}>
+                          {t.title}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              </div>
+            </div>
+            
+            <div className="pb-modal-body">
+              {isLoadingPages ? (
+                <div className="pb-modal-loading">
+                  <div className="pb-spinner"></div>
+                  <p>Cargando páginas desde Strapi...</p>
+                </div>
+              ) : filteredPages.length === 0 ? (
+                <div className="pb-modal-empty">
+                  <p>No se encontraron páginas en Strapi.</p>
+                  {cmsSearch || cmsModuleFilter !== 'all' ? (
+                    <button className="pb-modal-clear-btn" onClick={() => { setCmsSearch(''); setCmsModuleFilter('all'); }}>Limpiar filtros</button>
+                  ) : (
+                    <button className="pb-modal-clear-btn" onClick={() => selectPage(null)}>Crear la primera página</button>
+                  )}
+                </div>
+              ) : (
+                <div className="pb-pages-grid">
+                  {filteredPages.map(page => {
+                    const isCurrent = selectedPageId === (page.documentId || page.id);
+                    return (
+                      <div key={page.documentId || page.id} className={`pb-page-card ${isCurrent ? 'is-current' : ''}`}>
+                        <div className="pb-page-card-header">
+                          <span className={`pb-module-badge module-${page.module || 'default'}`}>
+                            {page.module === 'academic' && 'Académico'}
+                            {page.module === 'congress' && 'Congreso'}
+                            {page.module === 'diffusion' && 'Difusión'}
+                            {(!page.module || page.module === 'default') && 'Estándar'}
+                          </span>
+                          {isCurrent && <span className="pb-active-badge">Abierta</span>}
+                        </div>
+                        <h3>{page.title || 'Sin Título'}</h3>
+                        <code className="pb-page-slug">/{page.slug || 'sin-slug'}</code>
+                        <div className="pb-page-card-actions">
+                          <button
+                            type="button"
+                            className="pb-card-btn pb-btn-load"
+                            onClick={() => selectPage(page)}
+                          >
+                            Cargar
+                          </button>
+                          <button
+                            type="button"
+                            className="pb-card-btn pb-btn-delete"
+                            onClick={() => handleDeleteFromStrapi(page.documentId || page.id)}
+                            title="Eliminar de Strapi"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notifications */}
+      <div className="pb-toast-container">
+        {toasts.map(toast => (
+          <div key={toast.id} className={`pb-toast toast-${toast.type}`}>
+            <span className="pb-toast-icon">
+              {toast.type === 'success' && '✅'}
+              {toast.type === 'error' && '❌'}
+              {toast.type === 'warning' && '⚠️'}
+              {toast.type === 'info' && 'ℹ️'}
+            </span>
+            <span className="pb-toast-message">{toast.message}</span>
+            <button className="pb-toast-close" onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))}>✕</button>
+          </div>
+        ))}
+      </div>
     </main>
   );
 }
