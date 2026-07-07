@@ -1,7 +1,7 @@
 ---
-import Layout from '../frontend/layouts/Layout.astro';
-import { renderBlock } from '../backend/page-builder/renderers.jsx';
-import { fetchPagesFromStrapi } from '../backend/page-builder/storage.js';
+import Layout from '../layouts/Layout.astro';
+import { renderBlock } from '../features/page-builder/renderers.jsx';
+import { fetchPagesFromStrapi } from '../features/page-builder/storage.js';
 
 export async function getStaticPaths() {
   const pages = await fetchPagesFromStrapi();

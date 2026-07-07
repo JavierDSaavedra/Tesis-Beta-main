@@ -1,0 +1,36 @@
+services:
+  strapi:
+    build:
+      context: ./strapi-backend
+    env_file:
+      - ./strapi-backend/.env
+    environment:
+      NODE_ENV: production
+    ports:
+      - "1337:1337"
+    volumes:
+      - strapi_data:/app/.tmp
+      - strapi_uploads:/app/public/uploads
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('net').connect(1337, '127.0.0.1').on('connect', function(){this.end();process.exit(0)}).on('error', function(){process.exit(1)})"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      args:
+        PUBLIC_STRAPI_API_URL: http://localhost:1337
+    ports:
+      - "80:80"
+    depends_on:
+      strapi:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  strapi_data:
+  strapi_uploads:

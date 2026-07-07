@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import './page-builder.css';
-import { prebuiltTemplates, validateAgainstNorms } from '../../backend/page-builder/template-rules';
-import { blockTemplates, blockTypeLabels, defaultPageSettings, defaultStyle, starters, UBB_BRANDING, moduleTemplates } from '../../backend/page-builder/constants';
-import { createBlock, getAvailableBlockTypes, createModulePage } from '../../backend/page-builder/helpers';
-import { blockToHtml, renderBlock } from '../../backend/page-builder/renderers';
+import { prebuiltTemplates, validateAgainstNorms } from './template-rules';
+import { blockTemplates, blockTypeLabels, defaultPageSettings, defaultStyle, starters, UBB_BRANDING, moduleTemplates } from './constants';
+import { createBlock, getAvailableBlockTypes, createModulePage } from './helpers';
+import { blockToHtml, renderBlock } from './renderers';
 import {
   loadInitialBlocks,
   loadPageSettings,
@@ -20,7 +20,7 @@ import {
   updateTemplateInStrapi,
   deletePageFromStrapi,
   STRAPI_BASE_URL,
-} from '../../backend/page-builder/storage';
+} from './storage';
 
 function exportHtmlDocument(blocks, pageSettings) {
   const body = blocks.map((block) => blockToHtml(block)).join('');
@@ -495,6 +495,20 @@ export default function PageBuilder() {
       current.map((block) =>
         block.id === selectedId
           ? { ...block, style: { ...(block.style || defaultStyle), [field]: value } }
+          : block,
+      ),
+    );
+  };
+
+  const updateSelectedMetadata = (field, value) => {
+    if (!selectedId) {
+      return;
+    }
+
+    setBlocks((current) =>
+      current.map((block) =>
+        block.id === selectedId
+          ? { ...block, metadata: { ...(block.metadata || {}), [field]: value } }
           : block,
       ),
     );
@@ -1547,6 +1561,74 @@ export default function PageBuilder() {
                 <h3>Ajustes del Bloque</h3>
                 {selectedBlock ? (
                   <div className="pb-form">
+                    {selectedBlock.type === 'rich_article' ? (
+                      <label>
+                        Párrafos (uno por línea)
+                        <textarea
+                          rows={8}
+                          style={{ width: '90%', fontFamily: 'inherit' }}
+                          value={(selectedBlock.metadata?.paragraphs || []).join('\n')}
+                          onChange={(event) =>
+                            updateSelectedMetadata(
+                              'paragraphs',
+                              event.target.value.split('\n').filter((line) => line.trim().length > 0),
+                            )
+                          }
+                        />
+                      </label>
+                    ) : null}
+                    {selectedBlock.type === 'news_grid' ? (
+                      <label>
+                        Noticias del mosaico (una por línea: Título | Imagen URL | Enlace)
+                        <textarea
+                          rows={6}
+                          style={{ width: '90%', fontFamily: 'inherit' }}
+                          value={(selectedBlock.metadata?.items || [])
+                            .map((item) => `${item.title || ''} | ${item.image || ''} | ${item.url || ''}`)
+                            .join('\n')}
+                          onChange={(event) =>
+                            updateSelectedMetadata(
+                              'items',
+                              event.target.value
+                                .split('\n')
+                                .filter((line) => line.trim().length > 0)
+                                .map((line) => {
+                                  const [title, image, url] = line.split('|');
+                                  return {
+                                    title: (title || '').trim(),
+                                    image: (image || '').trim(),
+                                    url: (url || '#').trim() || '#',
+                                  };
+                                }),
+                            )
+                          }
+                        />
+                      </label>
+                    ) : null}
+                    {selectedBlock.type === 'archive_list' ? (
+                      <label>
+                        Noticias del listado (una por línea: Título | Fecha)
+                        <textarea
+                          rows={6}
+                          style={{ width: '90%', fontFamily: 'inherit' }}
+                          value={(selectedBlock.metadata?.items || [])
+                            .map((item) => `${item.title || ''} | ${item.date || ''}`)
+                            .join('\n')}
+                          onChange={(event) =>
+                            updateSelectedMetadata(
+                              'items',
+                              event.target.value
+                                .split('\n')
+                                .filter((line) => line.trim().length > 0)
+                                .map((line) => {
+                                  const [title, date] = line.split('|');
+                                  return { title: (title || '').trim(), date: (date || '').trim() };
+                                }),
+                            )
+                          }
+                        />
+                      </label>
+                    ) : null}
                     <label>
                       {selectedBlock.type === 'button' ? 'Margen Interno (Padding)' : 'Espaciado / Padding'}
                       <input
@@ -1702,53 +1784,69 @@ export default function PageBuilder() {
                       ➕ Página en Blanco
                     </button>
                   )}
-                  {strapiTemplates.length > 0 && (
-                    <select
-                      className="pb-modal-filter"
-                      style={{ background: 'var(--ubb-blue)', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
-                      onChange={(e) => {
-                        const templateId = e.target.value;
-                        if (templateId) {
-                          const template = strapiTemplates.find(t => t.documentId === templateId || String(t.id) === String(templateId));
-                          if (template) {
-                            if (isDirty) {
-                              if (!window.confirm('Tienes cambios sin guardar en el lienzo. ¿Seguro que deseas continuar y perder los cambios actuales?')) {
-                                e.target.value = '';
-                                return;
-                              }
-                            }
-                            setSelectedPageId('');
-                            setSelectedTemplateId(template.documentId || template.id);
-                            setBlocks(template.blocks || []);
-                            setPageSettings({
-                              ...defaultPageSettings,
-                              ...(template.pageSettings || {})
-                            });
-                            setPageTitle(`Nueva Página - ${template.title}`);
-                            setPageSlug(`nueva-pagina-${(template.title || '').toLowerCase().replace(/[^a-z0-9]+/g, '-')}`);
-                            setLastSavedState({
-                              blocks: template.blocks || [],
-                              pageSettings: template.pageSettings || defaultPageSettings,
-                              title: `Nueva Página - ${template.title}`,
-                              slug: `nueva-pagina-${(template.title || '').toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
-                              template: template.documentId || template.id
-                            });
-                            setIsCmsModalOpen(false);
-                            addToast(`Página creada usando plantilla "${template.title}"`, 'success');
+                  <select
+                    className="pb-modal-filter"
+                    style={{ background: 'var(--ubb-blue)', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
+                    onChange={(e) => {
+                      const rawValue = e.target.value;
+                      if (!rawValue) {
+                        return;
+                      }
+                      const [source, templateId] = rawValue.split(':');
+                      const template = source === 'prebuilt'
+                        ? prebuiltTemplates.find(t => t.id === templateId)
+                        : strapiTemplates.find(t => t.documentId === templateId || String(t.id) === String(templateId));
+
+                      if (template) {
+                        if (isDirty) {
+                          if (!window.confirm('Tienes cambios sin guardar en el lienzo. ¿Seguro que deseas continuar y perder los cambios actuales?')) {
+                            e.target.value = '';
+                            return;
                           }
                         }
-                        e.target.value = '';
-                      }}
-                      defaultValue=""
-                    >
-                      <option value="" disabled>➕ Crear desde Plantilla...</option>
-                      {strapiTemplates.map(t => (
-                        <option key={t.documentId || t.id} value={t.documentId || t.id} style={{ color: '#000', background: '#fff' }}>
-                          {t.title}
+                        const templateLabel = source === 'prebuilt' ? template.name : template.title;
+                        const templateKey = source === 'prebuilt' ? template.id : (template.documentId || template.id);
+                        setSelectedPageId('');
+                        setSelectedTemplateId(templateKey);
+                        setBlocks(template.blocks || []);
+                        setPageSettings({
+                          ...defaultPageSettings,
+                          ...(template.pageSettings || {})
+                        });
+                        setPageTitle(`Nueva Página - ${templateLabel}`);
+                        setPageSlug(`nueva-pagina-${(templateLabel || '').toLowerCase().replace(/[^a-z0-9]+/g, '-')}`);
+                        setLastSavedState({
+                          blocks: template.blocks || [],
+                          pageSettings: template.pageSettings || defaultPageSettings,
+                          title: `Nueva Página - ${templateLabel}`,
+                          slug: `nueva-pagina-${(templateLabel || '').toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+                          template: templateKey
+                        });
+                        setIsCmsModalOpen(false);
+                        addToast(`Página creada usando plantilla "${templateLabel}"`, 'success');
+                      }
+                      e.target.value = '';
+                    }}
+                    defaultValue=""
+                  >
+                    <option value="" disabled>➕ Crear desde Plantilla...</option>
+                    <optgroup label="Plantillas Prehechas" style={{ color: '#000', background: '#fff' }}>
+                      {prebuiltTemplates.map(t => (
+                        <option key={t.id} value={`prebuilt:${t.id}`} style={{ color: '#000', background: '#fff' }}>
+                          {t.name}
                         </option>
                       ))}
-                    </select>
-                  )}
+                    </optgroup>
+                    {strapiTemplates.length > 0 && (
+                      <optgroup label="Plantillas CMS Strapi" style={{ color: '#000', background: '#fff' }}>
+                        {strapiTemplates.map(t => (
+                          <option key={t.documentId || t.id} value={`strapi:${t.documentId || t.id}`} style={{ color: '#000', background: '#fff' }}>
+                            {t.title}
+                          </option>
+                        ))}
+                      </optgroup>
+                    )}
+                  </select>
                 </div>
               </div>
             </div>

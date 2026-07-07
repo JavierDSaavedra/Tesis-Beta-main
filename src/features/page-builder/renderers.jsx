@@ -65,7 +65,15 @@ export function blockToHtml(block) {
   }
 
   if (block.type === 'archive_list') {
-    return `<section style="${containerStyle}"><h2 style="margin:0;font-size:${style.titleSize}px">${block.title}</h2><p style="margin:8px 0 0;font-size:${style.textSize}px">${block.subtitle}</p></section>`;
+    const metadata = block.metadata || {};
+    const items = metadata.items || [];
+    const itemsHtml = items.map((item) => `
+      <div style="border-top:3px solid ${UBB_BRANDING.colors.secondary};padding:10px 0;margin-top:12px">
+        <p style="margin:0;font-size:13px;font-weight:700;line-height:1.35">${item.title}</p>
+        ${item.date ? `<span style="font-size:11px;opacity:0.7">Publicado el ${item.date}</span>` : ''}
+      </div>
+    `).join('');
+    return `<section style="${containerStyle};overflow-y:auto"><h2 style="margin:0;font-size:${style.titleSize}px;text-transform:uppercase;letter-spacing:0.5px">${block.title}</h2>${block.subtitle ? `<p style="margin:8px 0 0;font-size:${style.textSize}px;opacity:0.8">${block.subtitle}</p>` : ''}<div>${itemsHtml}</div></section>`;
   }
 
   if (block.type === 'curriculum') {
@@ -218,18 +226,22 @@ export function renderBlock(block) {
 
   if (block.type === 'archive_list') {
     const metadata = block.metadata || {};
+    const items = metadata.items || [];
     return (
-      <section className="pb-block pb-archive" style={sectionStyle}>
-        <h2 style={{ margin: '0 0 8px 0', fontSize: `${style.titleSize}px`, fontWeight: '700' }}>
+      <section className="pb-block pb-archive" style={{ ...sectionStyle, overflowY: 'auto' }}>
+        <h2 style={{ margin: '0 0 8px 0', fontSize: `${style.titleSize}px`, fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
           {block.title}
         </h2>
-        <p style={{ margin: '0', fontSize: `${style.textSize}px` }}>{block.subtitle}</p>
-        {metadata.items && metadata.items.length > 0 && (
-          <ul style={{ margin: '12px 0 0 0', paddingLeft: '20px' }}>
-            {metadata.items.map((item, i) => (
-              <li key={i} style={{ margin: '4px 0', fontSize: '12px' }}>{item}</li>
+        {block.subtitle && <p style={{ margin: '0', fontSize: `${style.textSize}px`, opacity: 0.8 }}>{block.subtitle}</p>}
+        {items.length > 0 && (
+          <div>
+            {items.map((item, i) => (
+              <div key={i} style={{ borderTop: `3px solid ${UBB_BRANDING.colors.secondary}`, padding: '10px 0', marginTop: '12px' }}>
+                <p style={{ margin: 0, fontSize: '13px', fontWeight: '700', lineHeight: 1.35 }}>{item.title}</p>
+                {item.date && <span style={{ fontSize: '11px', opacity: 0.7 }}>Publicado el {item.date}</span>}
+              </div>
             ))}
-          </ul>
+          </div>
         )}
       </section>
     );

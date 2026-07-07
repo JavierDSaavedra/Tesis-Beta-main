@@ -1,0 +1,11 @@
+node_modules
+strapi-backend
+.git
+.astro
+dist
+npm-debug.log*
+*.log
+.DS_Store
+.idea
+.env
+.env.production

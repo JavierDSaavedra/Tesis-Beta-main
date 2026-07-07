@@ -24,6 +24,11 @@
     },
     "pageSettings": {
       "type": "json"
+    },
+    "referenceFile": {
+      "type": "media",
+      "multiple": false,
+      "allowedTypes": ["files"]
     }
   }
 }

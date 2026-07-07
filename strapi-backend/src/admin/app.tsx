@@ -6,6 +6,27 @@ const PagePreviewPanel = (props: any) => {
   const { documentId, model } = props;
   const [slug, setSlug] = useState('');
   const [loading, setLoading] = useState(false);
+  const [referenceFileUrl, setReferenceFileUrl] = useState('');
+
+  useEffect(() => {
+    if (!documentId || model !== 'api::template.template') return;
+
+    const fetchTemplateFile = async () => {
+      try {
+        const res = await fetch(`/api/templates/${documentId}?populate=referenceFile`);
+        if (res.ok) {
+          const json: any = await res.json();
+          const file = json?.data?.referenceFile;
+          if (file && file.url) {
+            setReferenceFileUrl(file.url);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching template reference file:', err);
+      }
+    };
+    fetchTemplateFile();
+  }, [documentId, model]);
 
   useEffect(() => {
     if (!documentId || model !== 'api::page.page') return;
@@ -76,6 +97,30 @@ const PagePreviewPanel = (props: any) => {
             <p style={{ margin: 0, fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>
               Guarda este registro de plantilla primero para poder editarla visualmente en el lienzo.
             </p>
+          )}
+
+          {referenceFileUrl && (
+            <a
+              href={referenceFileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'block',
+                padding: '10px',
+                textAlign: 'center',
+                background: '#475569',
+                color: '#ffffff',
+                textDecoration: 'none',
+                fontWeight: 'bold',
+                borderRadius: '6px',
+                fontSize: '13px',
+                boxShadow: '0 2px 4px rgba(71, 85, 105, 0.2)',
+                transition: 'all 0.2s',
+                cursor: 'pointer'
+              }}
+            >
+              📄 Ver HTML de referencia
+            </a>
           )}
         </div>
       )
