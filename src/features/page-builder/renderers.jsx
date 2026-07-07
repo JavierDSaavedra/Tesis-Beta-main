@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { defaultStyle, UBB_BRANDING } from './constants';
+import { DRIVE_API_KEY, extractDriveFolderId, fetchDriveFolderImages } from './drive';
 
 export function blockToHtml(block) {
   const style = block.style || defaultStyle;
@@ -78,6 +79,87 @@ export function blockToHtml(block) {
 
   if (block.type === 'curriculum') {
     return `<section style="${containerStyle}"><h2 style="margin:0;font-size:${style.titleSize}px">${block.title}</h2><p style="margin:8px 0 0;font-size:${style.textSize}px">${block.subtitle}</p></section>`;
+  }
+
+  if (block.type === 'drive_carousel') {
+    const metadata = block.metadata || {};
+    const folderId = extractDriveFolderId(metadata.driveFolderId || '');
+    const filenames = metadata.images || [];
+    const containerId = `pb-carousel-${block.id || Math.random().toString(36).slice(2)}`;
+
+    return `<section id="${containerId}" style="${containerStyle}">
+      <div class="pb-carousel-viewport" style="position:relative;width:100%;height:100%;background:#0f172a">
+        <img class="pb-carousel-img" style="width:100%;height:100%;object-fit:cover;display:block" alt="${block.title || ''}" />
+        <div class="pb-carousel-empty" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#cbd5e1;font-size:13px;text-align:center;padding:16px;box-sizing:border-box">Cargando galería...</div>
+        <button class="pb-carousel-prev" type="button" aria-label="Anterior" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:none;border-radius:50%;background:rgba(15,23,42,0.55);color:#fff;font-size:16px;cursor:pointer">&#8249;</button>
+        <button class="pb-carousel-next" type="button" aria-label="Siguiente" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);width:36px;height:36px;border:none;border-radius:50%;background:rgba(15,23,42,0.55);color:#fff;font-size:16px;cursor:pointer">&#8250;</button>
+        <div class="pb-carousel-dots" style="position:absolute;bottom:10px;left:0;right:0;display:flex;justify-content:center;gap:6px"></div>
+        ${block.title ? `<div style="position:absolute;top:0;left:0;right:0;padding:10px 14px;background:linear-gradient(180deg,rgba(15,23,42,0.65),transparent);color:#fff;font-size:${style.titleSize}px;font-weight:700">${block.title}</div>` : ''}
+      </div>
+    </section>
+    <script>(function(){
+      var root = document.getElementById(${JSON.stringify(containerId)});
+      if (!root) return;
+      var apiKey = ${JSON.stringify(DRIVE_API_KEY)};
+      var folderId = ${JSON.stringify(folderId)};
+      var names = ${JSON.stringify(filenames)};
+      var img = root.querySelector('.pb-carousel-img');
+      var empty = root.querySelector('.pb-carousel-empty');
+      var dots = root.querySelector('.pb-carousel-dots');
+      var urls = [];
+      var index = 0;
+      var timer = null;
+
+      function renderDots() {
+        dots.innerHTML = '';
+        urls.forEach(function (_, i) {
+          var dot = document.createElement('span');
+          dot.style.cssText = 'width:7px;height:7px;border-radius:50%;background:' + (i === index ? '#ffffff' : 'rgba(255,255,255,0.45)') + ';cursor:pointer;display:inline-block';
+          dot.addEventListener('click', function () { index = i; show(); });
+          dots.appendChild(dot);
+        });
+      }
+
+      function show() {
+        if (!urls.length) return;
+        img.src = urls[index];
+        renderDots();
+      }
+
+      function next() { index = (index + 1) % urls.length; show(); }
+      function prev() { index = (index - 1 + urls.length) % urls.length; show(); }
+
+      root.querySelector('.pb-carousel-next').addEventListener('click', next);
+      root.querySelector('.pb-carousel-prev').addEventListener('click', prev);
+
+      if (!apiKey || !folderId || !names.length) {
+        empty.textContent = 'Configura la carpeta de Drive y los nombres de imagen en el editor.';
+        return;
+      }
+
+      var query = encodeURIComponent("'" + folderId + "' in parents and trashed = false");
+      fetch('https://www.googleapis.com/drive/v3/files?q=' + query + '&key=' + apiKey + '&fields=files(id,name)&pageSize=1000')
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+          var files = (data && data.files) || [];
+          urls = names.map(function (name) {
+            var match = files.find(function (f) { return f.name === name; });
+            return match ? ('https://drive.google.com/thumbnail?id=' + match.id + '&sz=w1600') : null;
+          }).filter(Boolean);
+          if (!urls.length) {
+            empty.textContent = 'No se encontraron imágenes con esos nombres en la carpeta de Drive.';
+            return;
+          }
+          empty.style.display = 'none';
+          show();
+          if (urls.length > 1) {
+            timer = setInterval(next, 4000);
+          }
+        })
+        .catch(function () {
+          empty.textContent = 'No se pudo conectar con Google Drive.';
+        });
+    })();</script>`;
   }
 
   // Default rendering for text and hero blocks
@@ -336,6 +418,10 @@ export function renderBlock(block) {
     );
   }
 
+  if (block.type === 'drive_carousel') {
+    return <DriveCarouselBlock key={block.id} block={block} style={style} sectionStyle={sectionStyle} />;
+  }
+
   const headingClass = block.type === 'hero' ? 'pb-title-hero' : 'pb-title-default';
 
   return (
@@ -344,6 +430,143 @@ export function renderBlock(block) {
         {block.title}
       </h2>
       <p style={{ margin: '0', fontSize: `${style.textSize}px` }}>{block.subtitle}</p>
+    </section>
+  );
+}
+
+function DriveCarouselBlock({ block, style, sectionStyle }) {
+  const metadata = block.metadata || {};
+  const folderId = extractDriveFolderId(metadata.driveFolderId || '');
+  const filenames = metadata.images || [];
+  const [images, setImages] = useState([]);
+  const [index, setIndex] = useState(0);
+  const [status, setStatus] = useState('idle');
+
+  useEffect(() => {
+    let cancelled = false;
+    setIndex(0);
+
+    if (!DRIVE_API_KEY || !folderId || filenames.length === 0) {
+      setStatus('idle');
+      setImages([]);
+      return undefined;
+    }
+
+    setStatus('loading');
+    fetchDriveFolderImages({ folderId, apiKey: DRIVE_API_KEY, filenames })
+      .then((resolved) => {
+        if (cancelled) return;
+        setImages(resolved);
+        setStatus(resolved.length ? 'ready' : 'empty');
+      })
+      .catch(() => {
+        if (!cancelled) setStatus('error');
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [folderId, JSON.stringify(filenames)]);
+
+  useEffect(() => {
+    if (status !== 'ready' || images.length < 2) return undefined;
+    const timer = setInterval(() => {
+      setIndex((current) => (current + 1) % images.length);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, [status, images.length]);
+
+  const goTo = (nextIndex) => setIndex((nextIndex + images.length) % images.length);
+
+  return (
+    <section className="pb-block" style={{ ...sectionStyle, padding: 0, position: 'relative', background: '#0f172a' }}>
+      {status === 'ready' && images.length > 0 ? (
+        <img
+          src={images[index].url}
+          alt={block.title || ''}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+        />
+      ) : (
+        <div
+          style={{
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#cbd5e1',
+            fontSize: '13px',
+            textAlign: 'center',
+            padding: '16px',
+            boxSizing: 'border-box',
+          }}
+        >
+          {status === 'idle' && 'Configura la carpeta de Drive y los nombres de imagen en el panel de Bloque.'}
+          {status === 'loading' && 'Cargando galería...'}
+          {status === 'empty' && 'No se encontraron imágenes con esos nombres en la carpeta de Drive.'}
+          {status === 'error' && 'No se pudo conectar con Google Drive. Revisa la API Key y los permisos de la carpeta.'}
+        </div>
+      )}
+
+      {block.title && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            padding: '10px 14px',
+            background: 'linear-gradient(180deg, rgba(15,23,42,0.65), transparent)',
+            color: '#fff',
+            fontSize: `${style.titleSize}px`,
+            fontWeight: 700,
+          }}
+        >
+          {block.title}
+        </div>
+      )}
+
+      {status === 'ready' && images.length > 1 && (
+        <>
+          <button
+            type="button"
+            aria-label="Anterior"
+            onClick={() => goTo(index - 1)}
+            style={{
+              position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
+              width: 36, height: 36, borderRadius: '50%', border: 'none',
+              background: 'rgba(15,23,42,0.55)', color: '#fff', fontSize: 16, cursor: 'pointer',
+            }}
+          >
+            ‹
+          </button>
+          <button
+            type="button"
+            aria-label="Siguiente"
+            onClick={() => goTo(index + 1)}
+            style={{
+              position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+              width: 36, height: 36, borderRadius: '50%', border: 'none',
+              background: 'rgba(15,23,42,0.55)', color: '#fff', fontSize: 16, cursor: 'pointer',
+            }}
+          >
+            ›
+          </button>
+          <div style={{ position: 'absolute', bottom: 10, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: '6px' }}>
+            {images.map((img, i) => (
+              <span
+                key={img.name}
+                onClick={() => goTo(i)}
+                style={{
+                  width: 7, height: 7, borderRadius: '50%', cursor: 'pointer',
+                  background: i === index ? '#ffffff' : 'rgba(255,255,255,0.45)',
+                }}
+              />
+            ))}
+          </div>
+        </>
+      )}
     </section>
   );
 }

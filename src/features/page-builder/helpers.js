@@ -111,19 +111,19 @@ export function getAvailableBlockTypes(module = 'default') {
 
   if (module === 'academic') {
     return allTypes.filter((type) =>
-      ['hero', 'program_header', 'curriculum', 'text', 'contact_info', 'image', 'button'].includes(type),
+      ['hero', 'program_header', 'curriculum', 'text', 'contact_info', 'image', 'button', 'drive_carousel'].includes(type),
     );
   }
 
   if (module === 'congress') {
     return allTypes.filter((type) =>
-      ['hero', 'congress_event', 'archive_list', 'text', 'image', 'button'].includes(type),
+      ['hero', 'congress_event', 'archive_list', 'text', 'image', 'button', 'drive_carousel'].includes(type),
     );
   }
 
   if (module === 'diffusion') {
     return allTypes.filter((type) =>
-      ['hero', 'news_item', 'text', 'image', 'button', 'archive_list'].includes(type),
+      ['hero', 'news_item', 'text', 'image', 'button', 'archive_list', 'drive_carousel'].includes(type),
     );
   }
 

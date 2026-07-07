@@ -1159,11 +1159,17 @@ export default function PageBuilder() {
             )}
           </aside>
         ) : (
-          <aside className="pb-panel is-collapsed" onClick={() => setLeftPanelOpen(true)} title="Expandir panel izquierdo">
-            <button 
+          <aside
+            className="pb-panel is-collapsed"
+            onClick={() => setLeftPanelOpen(true)}
+            data-tooltip="Expandir panel izquierdo"
+            aria-label="Expandir panel izquierdo"
+          >
+            <button
               type="button"
               className="pb-expand-btn"
               onClick={(e) => { e.stopPropagation(); setLeftPanelOpen(true); }}
+              aria-label="Expandir panel izquierdo"
             >
               ▶
             </button>
@@ -1629,6 +1635,34 @@ export default function PageBuilder() {
                         />
                       </label>
                     ) : null}
+                    {selectedBlock.type === 'drive_carousel' ? (
+                      <>
+                        <label>
+                          Carpeta de Drive (ID o enlace de la carpeta)
+                          <input
+                            type="text"
+                            style={{ width: '90%' }}
+                            placeholder="https://drive.google.com/drive/folders/..."
+                            value={selectedBlock.metadata?.driveFolderId || ''}
+                            onChange={(event) => updateSelectedMetadata('driveFolderId', event.target.value)}
+                          />
+                        </label>
+                        <label>
+                          Imágenes (un nombre de archivo de Drive por línea, en el orden deseado)
+                          <textarea
+                            rows={6}
+                            style={{ width: '90%', fontFamily: 'inherit' }}
+                            value={(selectedBlock.metadata?.images || []).join('\n')}
+                            onChange={(event) =>
+                              updateSelectedMetadata(
+                                'images',
+                                event.target.value.split('\n').filter((line) => line.trim().length > 0),
+                              )
+                            }
+                          />
+                        </label>
+                      </>
+                    ) : null}
                     <label>
                       {selectedBlock.type === 'button' ? 'Margen Interno (Padding)' : 'Espaciado / Padding'}
                       <input
@@ -1727,11 +1761,17 @@ export default function PageBuilder() {
             ) : null}
           </aside>
         ) : (
-          <aside className="pb-panel is-collapsed" onClick={() => setRightPanelOpen(true)} title="Expandir panel derecho">
-            <button 
+          <aside
+            className="pb-panel is-collapsed"
+            onClick={() => setRightPanelOpen(true)}
+            data-tooltip="Expandir panel derecho"
+            aria-label="Expandir panel derecho"
+          >
+            <button
               type="button"
               className="pb-expand-btn"
               onClick={(e) => { e.stopPropagation(); setRightPanelOpen(true); }}
+              aria-label="Expandir panel derecho"
             >
               ◀
             </button>

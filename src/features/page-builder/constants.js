@@ -327,6 +327,29 @@ export const blockTemplates = {
       align: 'left'
     },
   },
+  drive_carousel: {
+    type: 'drive_carousel',
+    title: 'Galería del Campus',
+    subtitle: '',
+    metadata: {
+      driveFolderId: '',
+      images: [],
+    },
+    style: {
+      ...defaultStyle,
+      background: UBB_BRANDING.colors.neutral,
+      color: UBB_BRANDING.colors.white,
+      width: 640,
+      height: 380,
+      x: 40,
+      y: 40,
+      titleSize: 20,
+      textSize: 14,
+      radius: 12,
+      padding: 0,
+      align: 'center',
+    },
+  },
 };
 
 // Labels de tipos de bloques traducidos al español
@@ -345,6 +368,7 @@ export const blockTypeLabels = {
   news_grid: 'Mosaico de Noticias',
   footer: 'Pie de Página UBB',
   rich_article: 'Cuerpo de Noticia/Artículo',
+  drive_carousel: 'Carrusel de Imágenes (Drive)',
 };
 
 export const starters = [
