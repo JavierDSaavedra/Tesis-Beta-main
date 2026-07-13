@@ -1,0 +1,143 @@
+# Despliegue sin Docker (servidor de la universidad)
+
+Esta guía documenta el procedimiento validado para desplegar este proyecto en un
+servidor que **no soporta Docker** (por ejemplo, un contenedor Debian propio de
+la universidad). Sigue estos pasos en orden — cada uno corrige un problema real
+encontrado al desplegar por primera vez.
+
+## 0. Antes de empezar
+
+- Usa **Node 22 LTS** (el frontend Astro exige `>=22.12.0` y el backend Strapi
+  `>=20.0.0 <=24.x.x`, así que 22 es la única versión LTS que satisface ambos).
+  Evita versiones muy nuevas/bleeding-edge (ej. 24.x recién salida): pueden
+  causar fallos silenciosos en el compilador interno del admin de Strapi.
+- **Nunca** corras `npm audit fix` ni `npm audit fix --force` en `strapi-backend`:
+  las vulnerabilidades reportadas son de dependencias transitorias de Strapi y el
+  `--force` intenta cambiar de mayor versión, rompiendo la resolución de
+  dependencias (`ERESOLVE`) entre `@strapi/strapi` y sus plugins.
+
+## 1. Instalar Node y clonar el repo
+
+```bash
+curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+apt install -y nodejs apache2
+git clone <url-del-repo>
+cd Tesis-Beta-main
+```
+
+## 2. Backend (Strapi)
+
+```bash
+cd strapi-backend
+npm install
+```
+
+`mysql2` ya es una dependencia declarada — no hace falta agregarla a mano.
+
+Si `npm install` avisa de scripts de instalación pendientes de aprobar
+(`allow-scripts`), apruébalos y reinstala:
+```bash
+npm approve-scripts esbuild@<version> @swc/core@<version> better-sqlite3@<version> sharp@<version> core-js-pure@<version>
+npm install
+```
+
+### Configurar `.env`
+
+Copia `.env.example` a `.env` y complétalo:
+```bash
+cp .env.example .env
+```
+- Genera cada secreto con `openssl rand -base64 32` (no dejes los valores `tobemodified`).
+- `PUBLIC_URL` debe ser la URL pública real por la que se accederá (ej. `http://IP:PUERTO`).
+  Esto es necesario para que Strapi arme URLs absolutas correctas en vez de usar su propio `host:port` interno — sin esto, `/admin` puede redirigir a `localhost:1337`.
+- Si usas MySQL, cambia `DATABASE_CLIENT=mysql` y completa host/puerto/usuario/contraseña/nombre de base de datos.
+
+### Build
+
+```bash
+npm run build
+```
+
+Esto compila el panel de administración (no el backend, que corre directo desde
+`src/` porque el proyecto es JavaScript, no TypeScript).
+
+**Importante:** no agregues un `tsconfig.json` dentro de `strapi-backend/`. Si lo
+haces, Strapi detecta el proyecto como TypeScript y busca las APIs compiladas en
+`dist/src/api/...` en vez de leer `src/api/...` directamente — como los
+`schema.json` de los content types no se copian ahí, todos los content types
+quedan sin registrar y el servidor crashea con
+`TypeError: Cannot read properties of undefined (reading 'kind')` al arrancar.
+El `tsconfig.json` de la raíz del proyecto (para Astro) ya excluye
+`node_modules` y `strapi-backend` explícitamente por la misma razón — no lo
+reviertas.
+
+### Arrancar con PM2
+
+Ya existe `strapi-backend/ecosystem.config.js`, así que basta con:
+```bash
+npm install -g pm2
+pm2 start ecosystem.config.js
+pm2 save
+pm2 startup   # copia y ejecuta el comando que te imprima
+```
+
+## 3. Frontend (Astro)
+
+Desde la raíz del proyecto:
+```bash
+cd ..
+npm install
+PUBLIC_STRAPI_API_URL=<misma URL pública que PUBLIC_URL> npm run build
+```
+Esto genera `dist/` como sitio estático. No hace falta copiarlo a otro lado si
+Apache apunta su `DocumentRoot` directamente a esta carpeta.
+
+## 4. Apache como proxy inverso
+
+Usa `deploy/apache-vhost.conf.example` como base:
+```bash
+cp deploy/apache-vhost.conf.example /etc/apache2/sites-enabled/000-default.conf
+# edita <PUBLIC_PORT>, <SERVER_NAME_OR_IP> y <PROJECT_PATH> con los valores reales
+a2enmod proxy proxy_http
+```
+
+Asegúrate de que el puerto público esté en `Listen <PUBLIC_PORT>` dentro de
+`/etc/apache2/ports.conf` (por defecto Apache trae `Listen 80`).
+
+```bash
+apache2ctl configtest
+apache2ctl restart
+```
+
+Si el contenedor no tiene `service`/`systemctl` disponibles (entornos muy
+mínimos), usa `apache2ctl start` / `apache2ctl stop` con ruta completa
+(`/usr/sbin/apache2ctl`) si el binario no está en el `PATH`.
+
+## 5. Primer arranque de Strapi
+
+1. Abre `http://<host-publico>/admin` y crea el primer usuario administrador.
+2. Ve a **Settings → Users & Permissions Plugin → Roles → Public** y habilita
+   `find`/`findOne` para los content types **Page** y **Template** (por defecto
+   la API pública está bloqueada — verás `403 Forbidden` hasta hacer esto).
+3. Verifica: `curl http://127.0.0.1:1337/api/pages` ya no debe dar error.
+
+## 6. Reconstruir el frontend con contenido real
+
+Una vez que el proxy y los permisos funcionan, reconstruye para que las páginas
+estáticas incluyan datos reales del backend:
+```bash
+cd ..
+PUBLIC_STRAPI_API_URL=<URL pública> npm run build
+```
+
+## Notas sobre el reenvío de puertos
+
+Si el entorno es en realidad un **contenedor Docker** administrado por la
+universidad (revisa `/etc/resolv.conf`: si dice "Generated by Docker Engine",
+lo es), el puerto público solo será alcanzable si el **host** que aloja el
+contenedor tiene configurado el mapeo (`docker run -p <puerto>:<puerto>`) hacia
+tu contenedor. Eso no se puede verificar ni corregir desde dentro del
+contenedor — si Apache escucha correctamente el puerto internamente
+(`curl http://127.0.0.1:<puerto>/` funciona) pero no hay acceso externo,
+contacta al Departamento de Sistemas de Información para que confirmen el
+reenvío de puertos a nivel de infraestructura.

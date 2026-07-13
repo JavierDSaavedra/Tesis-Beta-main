@@ -499,6 +499,7 @@ export interface ApiTemplateTemplate extends Struct.CollectionTypeSchema {
       Schema.Attribute.Private;
     pageSettings: Schema.Attribute.JSON;
     publishedAt: Schema.Attribute.DateTime;
+    referenceFile: Schema.Attribute.Media<'files'>;
     title: Schema.Attribute.String & Schema.Attribute.Required;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &

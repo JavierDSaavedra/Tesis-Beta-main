@@ -1,0 +1,34 @@
+# Reverse proxy vhost for deploying this project WITHOUT Docker.
+#
+# Usage:
+#   1. Copy this file to /etc/apache2/sites-enabled/000-default.conf (or a new
+#      site file) on the target server.
+#   2. Replace <PUBLIC_PORT>, <SERVER_NAME>/<SERVER_IP> and <PROJECT_PATH>
+#      below with your real values.
+#   3. Make sure /etc/apache2/ports.conf has "Listen <PUBLIC_PORT>" matching
+#      the VirtualHost port below.
+#   4. Enable required modules: a2enmod proxy proxy_http
+#   5. Test and reload: apache2ctl configtest && apache2ctl restart
+#
+# This mirrors the exact working configuration validated against a real
+# university deployment (Debian container, no Docker available, Strapi run
+# via PM2 on port 1337, Astro static build served as DocumentRoot).
+
+<VirtualHost *:<PUBLIC_PORT>>
+    ServerName <SERVER_NAME_OR_IP>
+    DocumentRoot <PROJECT_PATH>/dist
+
+    ProxyPreserveHost On
+    ProxyPass /api/ http://127.0.0.1:1337/api/
+    ProxyPassReverse /api/ http://127.0.0.1:1337/api/
+    ProxyPass /admin/ http://127.0.0.1:1337/admin/
+    ProxyPassReverse /admin/ http://127.0.0.1:1337/admin/
+    ProxyPass /uploads/ http://127.0.0.1:1337/uploads/
+    ProxyPassReverse /uploads/ http://127.0.0.1:1337/uploads/
+
+    <Directory <PROJECT_PATH>/dist>
+        AllowOverride All
+        Require all granted
+        FallbackResource /index.html
+    </Directory>
+</VirtualHost>
